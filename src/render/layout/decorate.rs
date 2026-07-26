@@ -5,7 +5,6 @@ use crate::render::{SLine, SSpan};
 use crate::style::{Computed, Rgb};
 
 /// Display width of a styled line.
-#[allow(dead_code)] // used by later decoration tasks
 pub fn line_width(line: &SLine) -> usize {
     line.iter().map(|s| text_width(&s.text)).sum()
 }

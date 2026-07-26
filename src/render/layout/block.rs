@@ -57,7 +57,7 @@ impl<'a> Renderer<'a> {
                 ));
                 line.push(SSpan::new(tag, gutter_style));
             } else {
-                super::decorate::bg_fill(&mut line, code_w, pre.bg);
+                super::decorate::bg_fill(&mut line, gutter_w + code_w, pre.bg);
             }
             self.out.push(line);
         }

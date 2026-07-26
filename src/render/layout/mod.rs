@@ -315,6 +315,23 @@ mod tests {
     }
 
     #[test]
+    fn code_block_rows_full_width() {
+        let doc = parse_document("```\nfn main() {}\nlet x = 1;\n```");
+        let scheme = Scheme::load(crate::style::DEFAULT_THEME);
+        let r = render_document(&doc, &scheme, 40);
+        let rows: Vec<_> = r
+            .lines
+            .iter()
+            .filter(|l| plain_of(l).contains('│'))
+            .collect();
+        assert_eq!(rows.len(), 2);
+        for row in rows {
+            let w: usize = row.iter().map(|s| text_width(&s.text)).sum();
+            assert_eq!(w, 40, "row painted to full width: {row:?}");
+        }
+    }
+
+    #[test]
     fn heading_rule_after_wrapped_text() {
         let lines = render("# a long heading that wraps over two lines", 20);
         assert_eq!(
