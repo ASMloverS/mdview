@@ -28,6 +28,7 @@ pub struct Reader {
     pub width: u16,
     pub offset: u16,
     pub scroll: usize,
+    pub cursor: usize,
     pub view_height: usize,
 }
 
@@ -86,6 +87,7 @@ impl App {
             width,
             offset,
             scroll: 0,
+            cursor: 0,
             view_height: 24,
         });
         self.search_matches.clear();
@@ -103,7 +105,9 @@ impl App {
         let rendered = self.render_file(&path, width, offset);
         if let Some(reader) = self.reader.as_mut() {
             reader.rendered = rendered;
-            reader.scroll = scroll.min(reader.rendered.lines.len().saturating_sub(1));
+            let last = reader.rendered.lines.len().saturating_sub(1);
+            reader.scroll = scroll.min(last);
+            reader.cursor = reader.cursor.min(last);
         }
         self.update_search();
     }
@@ -135,7 +139,7 @@ impl App {
             return;
         }
         let Some(reader) = self.reader.as_mut() else { return };
-        let cur = reader.scroll;
+        let cur = reader.cursor;
         let next = if forward {
             self.search_matches
                 .iter()
@@ -151,7 +155,8 @@ impl App {
                 .or_else(|| self.search_matches.last().copied())
         };
         if let Some(line) = next {
-            reader.scroll = line;
+            reader.cursor = line;
+            follow_cursor(reader);
         }
     }
 }
@@ -258,6 +263,24 @@ fn event_loop(
 pub fn content_width(term_width: u16, max_width: usize) -> u16 {
     let w = term_width.saturating_sub(2) as usize;
     w.min(max_width).max(20) as u16
+}
+
+/// 滚动跟随：调整 scroll 让光标落在可视区内。
+fn follow_cursor(reader: &mut Reader) {
+    if reader.cursor < reader.scroll {
+        reader.scroll = reader.cursor;
+    } else if reader.cursor >= reader.scroll + reader.view_height {
+        reader.scroll = reader.cursor + 1 - reader.view_height;
+    }
+}
+
+/// 键盘移动：光标移动 delta 行（clamp 到文档范围），滚动跟随。
+fn move_cursor(app: &mut App, delta: isize) {
+    let Some(reader) = app.reader.as_mut() else { return };
+    let last = reader.rendered.lines.len().saturating_sub(1);
+    let next = reader.cursor as isize + delta;
+    reader.cursor = next.clamp(0, last as isize) as usize;
+    follow_cursor(reader);
 }
 
 fn scroll_reader(app: &mut App, delta: isize) {
@@ -385,12 +408,12 @@ fn reader_key(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Char('q') => app.quit = true,
         KeyCode::Esc => app.mode = Mode::Browser,
-        KeyCode::Char('j') | KeyCode::Down => scroll_reader(app, 1),
-        KeyCode::Char('k') | KeyCode::Up => scroll_reader(app, -1),
-        KeyCode::Char('d') | KeyCode::PageDown => scroll_reader(app, page),
-        KeyCode::Char('u') | KeyCode::PageUp => scroll_reader(app, -page),
-        KeyCode::Char('g') => scroll_reader(app, isize::MIN / 2),
-        KeyCode::Char('G') => scroll_reader(app, isize::MAX / 2),
+        KeyCode::Char('j') | KeyCode::Down => move_cursor(app, 1),
+        KeyCode::Char('k') | KeyCode::Up => move_cursor(app, -1),
+        KeyCode::Char('d') | KeyCode::PageDown => move_cursor(app, page),
+        KeyCode::Char('u') | KeyCode::PageUp => move_cursor(app, -page),
+        KeyCode::Char('g') => move_cursor(app, isize::MIN / 2),
+        KeyCode::Char('G') => move_cursor(app, isize::MAX / 2),
         KeyCode::Char('/') => {
             app.searching = true;
             app.search_query.clear();
@@ -399,10 +422,10 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('N') => app.jump_match(false),
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit = true,
         KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            scroll_reader(app, full)
+            move_cursor(app, full)
         }
         KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            scroll_reader(app, -full)
+            move_cursor(app, -full)
         }
         _ => {}
     }
@@ -453,6 +476,7 @@ mod tests {
             width: 80,
             offset: 0,
             scroll: 0,
+            cursor: 0,
             view_height,
         });
         app
@@ -470,28 +494,104 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_f_scrolls_full_page() {
+    fn j_moves_cursor_without_scrolling() {
         let mut app = test_app(100, 24);
-        handle_key(&mut app, ctrl('f'));
-        assert_eq!(app.reader.as_ref().unwrap().scroll, 22);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('j')));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 1);
+        assert_eq!(r.scroll, 0);
     }
 
     #[test]
-    fn ctrl_b_scrolls_back_and_clamps_at_top() {
+    fn k_clamps_cursor_at_top() {
         let mut app = test_app(100, 24);
-        handle_key(&mut app, ctrl('f'));
-        handle_key(&mut app, ctrl('b'));
-        assert_eq!(app.reader.as_ref().unwrap().scroll, 0);
-        // Already at top: stays 0.
-        handle_key(&mut app, ctrl('b'));
-        assert_eq!(app.reader.as_ref().unwrap().scroll, 0);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('k')));
+        assert_eq!(app.reader.as_ref().unwrap().cursor, 0);
     }
 
     #[test]
-    fn ctrl_f_clamps_at_bottom() {
+    fn cursor_past_bottom_edge_scrolls_down() {
         let mut app = test_app(100, 24);
-        app.reader.as_mut().unwrap().scroll = 70;
+        app.reader.as_mut().unwrap().cursor = 23;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('j')));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 24);
+        assert_eq!(r.scroll, 1);
+    }
+
+    #[test]
+    fn cursor_past_top_edge_scrolls_up() {
+        let mut app = test_app(100, 24);
+        let r = app.reader.as_mut().unwrap();
+        r.cursor = 10;
+        r.scroll = 10;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('k')));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 9);
+        assert_eq!(r.scroll, 9);
+    }
+
+    #[test]
+    fn d_moves_cursor_half_page() {
+        let mut app = test_app(100, 24);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('d')));
+        assert_eq!(app.reader.as_ref().unwrap().cursor, 12);
+    }
+
+    #[test]
+    fn ctrl_f_moves_cursor_one_page() {
+        let mut app = test_app(100, 24);
         handle_key(&mut app, ctrl('f'));
-        assert_eq!(app.reader.as_ref().unwrap().scroll, 76); // 100 - 24
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 22);
+        assert_eq!(r.scroll, 0);
+    }
+
+    #[test]
+    fn ctrl_b_moves_back_and_clamps() {
+        let mut app = test_app(100, 24);
+        handle_key(&mut app, ctrl('f'));
+        handle_key(&mut app, ctrl('b'));
+        assert_eq!(app.reader.as_ref().unwrap().cursor, 0);
+        // 已在顶部：保持 0。
+        handle_key(&mut app, ctrl('b'));
+        assert_eq!(app.reader.as_ref().unwrap().cursor, 0);
+    }
+
+    #[test]
+    fn ctrl_f_clamps_at_last_line_and_scroll_follows() {
+        let mut app = test_app(100, 24);
+        app.reader.as_mut().unwrap().cursor = 90;
+        handle_key(&mut app, ctrl('f'));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 99);
+        assert_eq!(r.scroll, 76); // 99 + 1 - 24
+    }
+
+    #[test]
+    fn g_and_g_upper_jump_to_ends() {
+        let mut app = test_app(100, 24);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('G')));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 99);
+        assert_eq!(r.scroll, 76);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('g')));
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 0);
+        assert_eq!(r.scroll, 0);
+    }
+
+    #[test]
+    fn search_jump_moves_cursor_and_scroll_follows() {
+        let mut app = test_app(100, 24);
+        app.search_matches = vec![10, 50];
+        app.jump_match(true);
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 10);
+        assert_eq!(r.scroll, 0);
+        app.jump_match(true);
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 50);
+        assert_eq!(r.scroll, 27); // 50 + 1 - 24
     }
 }
