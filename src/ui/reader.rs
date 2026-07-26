@@ -14,15 +14,17 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let view = chunks[0];
 
     let want_width = content_width(view.width, app.max_width);
+    let want_offset = view.width.saturating_sub(2).saturating_sub(want_width) / 2;
     let Some(reader) = app.reader.as_mut() else { return };
     reader.view_height = view.height.saturating_sub(2) as usize;
-    if reader.width != want_width {
+    if reader.width != want_width || reader.offset != want_offset {
         let path = reader.path.clone();
         let scroll = reader.scroll;
-        let rendered = app.render_file(&path, want_width);
+        let rendered = app.render_file(&path, want_width, want_offset);
         let reader = app.reader.as_mut().unwrap();
         reader.rendered = rendered;
         reader.width = want_width;
+        reader.offset = want_offset;
         reader.scroll = scroll.min(reader.rendered.lines.len().saturating_sub(1));
     }
 

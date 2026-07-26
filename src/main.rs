@@ -60,8 +60,10 @@ fn main() -> Result<()> {
         let mut text = String::new();
         std::io::stdin().read_to_string(&mut text)?;
         let doc = markdown::parse_document(&text);
-        let width = terminal_width().min(max_width);
-        let rendered = render::layout::render_document(&doc, &scheme, width);
+        let term = terminal_width();
+        let width = term.min(max_width);
+        let offset = (term - width) / 2;
+        let rendered = render::layout::render_document(&doc, &scheme, width, offset);
         print!("{}", render::ansi::render_ansi(&rendered.lines, level));
         return Ok(());
     }

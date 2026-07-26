@@ -25,6 +25,7 @@ pub struct Reader {
     pub path: PathBuf,
     pub rendered: Rendered,
     pub width: u16,
+    pub offset: u16,
     pub scroll: usize,
     pub view_height: usize,
 }
@@ -70,18 +71,19 @@ impl App {
         }
     }
 
-    pub fn render_file(&self, path: &Path, width: u16) -> Rendered {
+    pub fn render_file(&self, path: &Path, width: u16, offset: u16) -> Rendered {
         let text = std::fs::read_to_string(path).unwrap_or_else(|e| format!("(error: {e})"));
         let doc = parse_document(&text);
-        render_document(&doc, &self.scheme, width as usize)
+        render_document(&doc, &self.scheme, width as usize, offset as usize)
     }
 
-    pub fn open_reader(&mut self, path: PathBuf, width: u16) {
-        let rendered = self.render_file(&path, width);
+    pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {
+        let rendered = self.render_file(&path, width, offset);
         self.reader = Some(Reader {
             path,
             rendered,
             width,
+            offset,
             scroll: 0,
             view_height: 24,
         });
@@ -96,7 +98,8 @@ impl App {
         let scroll = reader.scroll;
         let path = reader.path.clone();
         let width = reader.width;
-        let rendered = self.render_file(&path, width);
+        let offset = reader.offset;
+        let rendered = self.render_file(&path, width, offset);
         if let Some(reader) = self.reader.as_mut() {
             reader.rendered = rendered;
             reader.scroll = scroll.min(reader.rendered.lines.len().saturating_sub(1));
@@ -226,8 +229,10 @@ fn event_loop(
 ) -> Result<()> {
     let mut app = App::new(scheme, level, max_width);
     if let Some(path) = start_file {
-        let width = content_width(terminal.size()?.width, max_width);
-        app.open_reader(path, width);
+        let term_w = terminal.size()?.width;
+        let width = content_width(term_w, max_width);
+        let offset = term_w.saturating_sub(2).saturating_sub(width) / 2;
+        app.open_reader(path, width, offset);
     }
 
     while !app.quit {
@@ -348,7 +353,7 @@ fn browser_key(app: &mut App, key: KeyEvent) {
         KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
             if let Some(path) = app.files.get(app.selected).cloned() {
                 app.preview = None;
-                app.open_reader(path, app.max_width as u16);
+                app.open_reader(path, app.max_width as u16, 0);
             }
         }
         KeyCode::Char('r') => {

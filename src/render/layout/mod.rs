@@ -29,7 +29,7 @@ struct Seg {
     link: Option<String>,
 }
 
-pub fn render_document(doc: &Document, scheme: &Scheme, width: usize) -> Rendered {
+pub fn render_document(doc: &Document, scheme: &Scheme, width: usize, offset: usize) -> Rendered {
     let mut r = Renderer {
         scheme,
         highlighter: Highlighter::new(scheme),
@@ -39,11 +39,11 @@ pub fn render_document(doc: &Document, scheme: &Scheme, width: usize) -> Rendere
         col: 0,
         links: Vec::new(),
     };
-    r.render(doc)
+    r.render(doc, offset)
 }
 
 impl<'a> Renderer<'a> {
-    fn render(&mut self, doc: &Document) -> Rendered {
+    fn render(&mut self, doc: &Document, offset: usize) -> Rendered {
         if let Some(meta) = &doc.meta {
             let style = self.scheme.element("footnote");
             for line in meta.lines() {
@@ -72,6 +72,16 @@ impl<'a> Renderer<'a> {
         // Trim trailing blank lines.
         while self.out.last().is_some_and(|l| l.is_empty()) {
             self.out.pop();
+        }
+
+        // Uniform left offset for horizontal centering.
+        if offset > 0 {
+            let pad = || SSpan::new(" ".repeat(offset), Computed::default());
+            for line in &mut self.out {
+                if !line.is_empty() {
+                    line.insert(0, pad());
+                }
+            }
         }
 
         let plain = self.out.iter().map(plain_of).collect();
@@ -242,9 +252,20 @@ mod tests {
     use crate::markdown::parse_document;
 
     fn render(src: &str, width: usize) -> Vec<String> {
+        render_off(src, width, 0)
+    }
+
+    fn render_off(src: &str, width: usize, offset: usize) -> Vec<String> {
         let doc = parse_document(src);
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        render_document(&doc, &scheme, width).plain
+        render_document(&doc, &scheme, width, offset).plain
+    }
+
+    #[test]
+    fn centers_with_offset() {
+        let lines = render_off("hello", 20, 5);
+        let first = lines.iter().find(|l| !l.trim().is_empty()).unwrap();
+        assert!(first.starts_with("     hello"), "offset pad: {first:?}");
     }
 
     #[test]
@@ -314,7 +335,7 @@ mod tests {
     fn code_block_bg_fills_line() {
         let doc = parse_document("```\nhi\n```");
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let r = render_document(&doc, &scheme, 40);
+        let r = render_document(&doc, &scheme, 40, 0);
         let pre_bg = scheme.style_for(&["body", "pre"]).bg;
         assert!(pre_bg.is_some());
         let line = r
@@ -329,7 +350,7 @@ mod tests {
     fn code_block_rows_full_width() {
         let doc = parse_document("```\nfn main() {}\nlet x = 1;\n```");
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let r = render_document(&doc, &scheme, 40);
+        let r = render_document(&doc, &scheme, 40, 0);
         let rows: Vec<_> = r
             .lines
             .iter()
@@ -370,7 +391,7 @@ mod tests {
                 "blockquote { background: #112233; border-color: #445566 }",
             ),
         };
-        let r = render_document(&doc, &scheme, 40);
+        let r = render_document(&doc, &scheme, 40, 0);
         let line = r
             .lines
             .iter()

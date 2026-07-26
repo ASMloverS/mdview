@@ -45,7 +45,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             *p == path && *w == preview_inner && *theme == app.scheme.name
         });
         if !valid {
-            let rendered = app.render_file(&path, preview_inner);
+            let rendered = app.render_file(&path, preview_inner, 0);
             app.preview = Some((path.clone(), preview_inner, app.scheme.name.clone(), rendered));
         }
         app.preview
