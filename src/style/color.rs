@@ -107,13 +107,22 @@ pub enum ColorLevel {
 }
 
 impl ColorLevel {
-    /// Detect from `COLORTERM` / `TERM`.
+    /// Detect from `COLORTERM` / `TERM` / `WT_SESSION`.
     pub fn detect() -> ColorLevel {
         let colorterm = std::env::var("COLORTERM").unwrap_or_default();
+        let term = std::env::var("TERM").unwrap_or_default();
+        // Windows Terminal 支持 truecolor，但不设 COLORTERM。
+        let wt = std::env::var("WT_SESSION").is_ok();
+        Self::detect_from(&colorterm, &term, wt)
+    }
+
+    fn detect_from(colorterm: &str, term: &str, wt_session: bool) -> ColorLevel {
         if colorterm.contains("truecolor") || colorterm.contains("24bit") {
             return ColorLevel::True;
         }
-        let term = std::env::var("TERM").unwrap_or_default();
+        if wt_session {
+            return ColorLevel::True;
+        }
         if term.contains("256color") {
             ColorLevel::Ansi256
         } else {
@@ -128,5 +137,37 @@ impl ColorLevel {
             ColorLevel::Ansi256 => Color::Indexed(rgb.to_ansi256()),
             ColorLevel::Ansi16 => Color::Indexed(rgb.to_ansi16()),
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_prefers_colorterm_truecolor() {
+        assert_eq!(
+            ColorLevel::detect_from("truecolor", "xterm", false),
+            ColorLevel::True
+        );
+        assert_eq!(ColorLevel::detect_from("24bit", "", false), ColorLevel::True);
+    }
+
+    #[test]
+    fn detect_windows_terminal_is_truecolor() {
+        // WT 不设 COLORTERM，TERM 也可能是 dumb：仍以 truecolor 处理。
+        assert_eq!(ColorLevel::detect_from("", "dumb", true), ColorLevel::True);
+        assert_eq!(ColorLevel::detect_from("", "", true), ColorLevel::True);
+    }
+
+    #[test]
+    fn detect_term_fallbacks() {
+        assert_eq!(
+            ColorLevel::detect_from("", "xterm-256color", false),
+            ColorLevel::Ansi256
+        );
+        assert_eq!(ColorLevel::detect_from("", "xterm", false), ColorLevel::Ansi16);
+        assert_eq!(ColorLevel::detect_from("", "dumb", false), ColorLevel::Ansi16);
     }
 }
