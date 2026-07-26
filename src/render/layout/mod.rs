@@ -1,6 +1,7 @@
 //! Layout engine: Document IR + Scheme -> wrapped styled lines.
 
 mod block;
+pub mod decorate;
 mod text;
 
 use super::{plain_of, Rendered, SLine, SSpan};
@@ -265,6 +266,21 @@ mod tests {
         let lines = render("- [x] done\n- [ ] todo", 40);
         assert!(lines.iter().any(|l| l.contains("☑ done")));
         assert!(lines.iter().any(|l| l.contains("☐ todo")));
+    }
+
+    #[test]
+    fn heading_rules() {
+        let lines = render("# Top\n\n## Mid\n\n### Low", 30);
+        assert_eq!(
+            lines.iter().filter(|l| *l == &"═".repeat(30)).count(),
+            1,
+            "h1 gets one double rule, lines: {lines:?}"
+        );
+        assert_eq!(
+            lines.iter().filter(|l| *l == &"─".repeat(30)).count(),
+            1,
+            "h2 gets one single rule, lines: {lines:?}"
+        );
     }
 
     #[test]

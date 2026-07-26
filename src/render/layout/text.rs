@@ -28,6 +28,15 @@ impl<'a> Renderer<'a> {
         chain.push(tag);
         let segs = self.flatten(content, &chain);
         self.emit_wrapped(segs);
+        if level <= 2 {
+            let style = self.scheme.style_for(&chain);
+            let ch = if level == 1 { '═' } else { '─' };
+            let rule = Computed {
+                fg: style.border.or(style.fg),
+                ..Computed::default()
+            };
+            self.push_raw_line(super::decorate::rule_line(ch, self.width, rule));
+        }
         self.blank();
     }
 
