@@ -54,10 +54,13 @@
   `app.scheme.element("cursor")` 的 `bg`；主题未定义时返回 `None`，
   旧用户主题则不显示高亮。
 - `reader::draw` 中 `convert()` 之后，若光标行在可视窗口内：
-  - 把该 `Line` 自身的 style 设为光标背景色，由 ratatui 填充整行宽度
-    （含两侧留白）；
-  - 对行内每个 span `patch_style` 叠加光标背景色，保留原有前景色。
-- 高亮逻辑抽成纯函数（如 `highlight_line(line, style)`）便于单测。
+  - 对该 `Line` `patch_style` 叠加光标背景色（bg-only，行 style 作为基底
+    与各 span 合成，保留原有前景色）；
+  - 追加一个满宽填充 span（`" ".repeat(view.width)` + 光标背景），
+    因为 ratatui 0.29 的 `Paragraph` 只写 span 覆盖的单元格，
+    不会把行 style 填充到行尾空白。
+- 高亮行为通过 ratatui `TestBackend` 绘制断言验证（整行 bg、前景保留、
+  无 `cursor` 元素时不高亮）。
 
 ### 3. 主题（`assets/styles/*.css`）
 
