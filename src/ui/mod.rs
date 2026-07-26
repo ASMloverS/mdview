@@ -111,6 +111,7 @@ fn draw_help(frame: &mut Frame, app: &App) {
         ("Enter, l", "open file (browser)"),
         ("Esc", "back to browser"),
         ("d/u, PgDn/PgUp", "half page down/up"),
+        ("Ctrl+f/b", "page forward / back"),
         ("g/G", "top / bottom"),
         ("/, n/N", "search / next match"),
         ("t", "theme picker"),

@@ -267,6 +267,12 @@ fn scroll_reader(app: &mut App, delta: isize) {
     }
 }
 
+/// Full-page scroll distance: one screen minus a 2-line overlap
+/// (vim-style context); tiny views degrade to a single line.
+fn page_delta(view_height: usize) -> usize {
+    view_height.saturating_sub(2).max(1)
+}
+
 fn handle_key(app: &mut App, key: KeyEvent) {
     app.status = None;
 
@@ -370,6 +376,11 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         .as_ref()
         .map(|r| r.view_height / 2)
         .unwrap_or(10) as isize;
+    let full = app
+        .reader
+        .as_ref()
+        .map(|r| page_delta(r.view_height))
+        .unwrap_or(10) as isize;
     match key.code {
         KeyCode::Char('q') => app.quit = true,
         KeyCode::Esc => app.mode = Mode::Browser,
@@ -386,6 +397,12 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('n') => app.jump_match(true),
         KeyCode::Char('N') => app.jump_match(false),
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit = true,
+        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            scroll_reader(app, full)
+        }
+        KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            scroll_reader(app, -full)
+        }
         _ => {}
     }
 }
@@ -407,5 +424,67 @@ fn handle_mouse(app: &mut App, kind: MouseEventKind) {
             }
         },
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::render::Rendered;
+    use crate::style::{ColorLevel, Scheme};
+
+    fn test_app(lines: usize, view_height: usize) -> App {
+        let scheme = Scheme::load(crate::style::DEFAULT_THEME);
+        let mut app = App::new(scheme, ColorLevel::True, 100);
+        app.mode = Mode::Reader;
+        app.reader = Some(Reader {
+            path: PathBuf::from("test.md"),
+            rendered: Rendered {
+                lines: vec![Vec::new(); lines],
+                plain: vec![String::new(); lines],
+            },
+            width: 80,
+            offset: 0,
+            scroll: 0,
+            view_height,
+        });
+        app
+    }
+
+    fn ctrl(key: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(key), KeyModifiers::CONTROL)
+    }
+
+    #[test]
+    fn page_delta_full_screen_minus_overlap() {
+        assert_eq!(page_delta(24), 22);
+        assert_eq!(page_delta(2), 1, "tiny view degrades to 1 line");
+        assert_eq!(page_delta(1), 1);
+    }
+
+    #[test]
+    fn ctrl_f_scrolls_full_page() {
+        let mut app = test_app(100, 24);
+        handle_key(&mut app, ctrl('f'));
+        assert_eq!(app.reader.as_ref().unwrap().scroll, 22);
+    }
+
+    #[test]
+    fn ctrl_b_scrolls_back_and_clamps_at_top() {
+        let mut app = test_app(100, 24);
+        handle_key(&mut app, ctrl('f'));
+        handle_key(&mut app, ctrl('b'));
+        assert_eq!(app.reader.as_ref().unwrap().scroll, 0);
+        // Already at top: stays 0.
+        handle_key(&mut app, ctrl('b'));
+        assert_eq!(app.reader.as_ref().unwrap().scroll, 0);
+    }
+
+    #[test]
+    fn ctrl_f_clamps_at_bottom() {
+        let mut app = test_app(100, 24);
+        app.reader.as_mut().unwrap().scroll = 70;
+        handle_key(&mut app, ctrl('f'));
+        assert_eq!(app.reader.as_ref().unwrap().scroll, 76); // 100 - 24
     }
 }
