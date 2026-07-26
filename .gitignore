@@ -10,6 +10,16 @@ desktop.ini
 .idea/
 .vscode/
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Vim
+*.swp
+*.swo
+*~
+
 # Project: per-machine local state (written at runtime)
 /config.toml
 /md-styles/
