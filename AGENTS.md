@@ -41,6 +41,7 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 - Tests: in-file `#[cfg(test)] mod tests`. Render tests assert on plain-text
   output (`render_document(...).plain`) and on span styles.
 - Code comments: Chinese, concise — match the existing style.
+- Docs under `docs/superpowers/` (specs and plans): written in Chinese.
 - Commit only when asked or when executing an approved plan; feature work
   happens on short-lived branches merged back to master.
 - Commit message format (MANDATORY): `<gitmoji> <scope>(<type>): <message>`
