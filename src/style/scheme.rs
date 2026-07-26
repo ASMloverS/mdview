@@ -2,6 +2,7 @@
 
 use super::color::Rgb;
 use super::css::{self, Props, Rule};
+use std::path::PathBuf;
 
 /// A fully resolved style for one IR node.
 #[derive(Debug, Clone, Copy, Default)]
@@ -37,6 +38,51 @@ const BUILTINS: &[(&str, &str)] = &[
 
 pub const DEFAULT_THEME: &str = "tokyo-night";
 
+/// User CSS theme directories in priority order: `./md-styles` first,
+/// then `md-styles` next to the executable.
+fn style_dirs() -> Vec<PathBuf> {
+    let mut dirs = vec![PathBuf::from("md-styles")];
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            dirs.push(dir.join("md-styles"));
+        }
+    }
+    dirs
+}
+
+/// Load `<name>.css` from the first directory that contains it.
+fn load_from_dirs(dirs: &[PathBuf], name: &str) -> Option<Scheme> {
+    for dir in dirs {
+        if let Ok(text) = std::fs::read_to_string(dir.join(format!("{name}.css"))) {
+            return Some(Scheme {
+                name: name.to_string(),
+                rules: css::parse(&text),
+            });
+        }
+    }
+    None
+}
+
+/// Builtin names plus CSS file stems from the given directories, deduped.
+fn available_in(dirs: &[PathBuf]) -> Vec<String> {
+    let mut names: Vec<String> = BUILTINS.iter().map(|(n, _)| n.to_string()).collect();
+    for dir in dirs {
+        if let Ok(rd) = std::fs::read_dir(dir) {
+            for entry in rd.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "css") {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        if !names.iter().any(|n| n == stem) {
+                            names.push(stem.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    names
+}
+
 #[derive(Debug, Clone)]
 pub struct Scheme {
     pub name: String,
@@ -48,16 +94,13 @@ impl Scheme {
         BUILTINS.iter().map(|(n, _)| *n).collect()
     }
 
-    /// Resolve a scheme by name: builtin first, then `md-styles/<name>.css`
-    /// under the current directory. A user file with the same name as a
-    /// builtin overrides the builtin. Unknown names fall back to default.
+    /// Resolve a scheme by name: user `md-styles/<name>.css` first (current
+    /// directory, then next to the executable), then builtins. A user file
+    /// with the same name as a builtin overrides the builtin. Unknown names
+    /// fall back to default.
     pub fn load(name: &str) -> Scheme {
-        let user_path = std::path::Path::new("md-styles").join(format!("{name}.css"));
-        if let Ok(css_text) = std::fs::read_to_string(&user_path) {
-            return Scheme {
-                name: name.to_string(),
-                rules: css::parse(&css_text),
-            };
+        if let Some(s) = load_from_dirs(&style_dirs(), name) {
+            return s;
         }
         if let Some((n, text)) = BUILTINS.iter().find(|(n, _)| *n == name) {
             return Scheme {
@@ -74,21 +117,10 @@ impl Scheme {
         }
     }
 
-    /// All loadable scheme names: builtins plus user CSS files in md-styles/.
+    /// All loadable scheme names: builtins plus user CSS files in the
+    /// md-styles/ directories (current directory and next to the executable).
     pub fn available() -> Vec<String> {
-        let mut names: Vec<String> = BUILTINS.iter().map(|(n, _)| n.to_string()).collect();
-        if let Ok(dir) = std::fs::read_dir("md-styles") {
-            for entry in dir.flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|e| e == "css") {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        if !names.iter().any(|n| n == stem) {
-                            names.push(stem.to_string());
-                        }
-                    }
-                }
-            }
-        }
+        let mut names = available_in(&style_dirs());
         names.sort();
         names
     }
@@ -211,5 +243,34 @@ mod tests {
             let s = Scheme::load(name);
             assert!(!s.rules.is_empty(), "builtin {name} produced no rules");
         }
+    }
+
+    #[test]
+    fn user_dirs_priority_and_fallback() {
+        let base = std::env::temp_dir().join(format!("mdview-scheme-{}", std::process::id()));
+        let cwd_dir = base.join("cwd");
+        let exe_dir = base.join("exe");
+        std::fs::create_dir_all(&cwd_dir).unwrap();
+        std::fs::create_dir_all(&exe_dir).unwrap();
+        std::fs::write(exe_dir.join("nord.css"), "h1 { color: #010203 }").unwrap();
+        std::fs::write(cwd_dir.join("nord.css"), "h1 { color: #040506 }").unwrap();
+        std::fs::write(exe_dir.join("exe-only.css"), "h1 { color: #070809 }").unwrap();
+        let dirs = [cwd_dir.clone(), exe_dir.clone()];
+
+        // cwd 目录优先于 exe 目录。
+        let s = load_from_dirs(&dirs, "nord").unwrap();
+        assert_eq!(s.element("h1").fg, Some(Rgb(0x04, 0x05, 0x06)));
+        // 只在 exe 目录存在的主题可以 fallback 加载。
+        let s = load_from_dirs(&dirs, "exe-only").unwrap();
+        assert_eq!(s.element("h1").fg, Some(Rgb(0x07, 0x08, 0x09)));
+        // 两个目录都没有时返回 None。
+        assert!(load_from_dirs(&dirs, "missing").is_none());
+        // available_in 合并两个目录的 stem 并含内置主题。
+        let names = available_in(&dirs);
+        assert!(names.iter().any(|n| n == "nord"));
+        assert!(names.iter().any(|n| n == "exe-only"));
+        assert!(names.iter().any(|n| n == "tokyo-night"));
+
+        std::fs::remove_dir_all(&base).ok();
     }
 }
