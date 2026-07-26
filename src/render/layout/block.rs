@@ -151,11 +151,11 @@ impl<'a> Renderer<'a> {
             }
         }
 
-        let hline = |left: &str, mid: &str, right: &str, widths: &[usize]| -> SLine {
+        let hline = |left: &str, mid: &str, right: &str, fill: &str, widths: &[usize]| -> SLine {
             let mut s = String::new();
             s.push_str(left);
             for (i, w) in widths.iter().enumerate() {
-                s.push_str(&"─".repeat(w + 2));
+                s.push_str(&fill.repeat(w + 2));
                 if i + 1 < widths.len() {
                     s.push_str(mid);
                 }
@@ -185,13 +185,13 @@ impl<'a> Renderer<'a> {
         };
 
         self.blank();
-        self.push_raw_line(hline("┌", "┬", "┐", &widths));
+        self.push_raw_line(hline("┌", "┬", "┐", "─", &widths));
         self.push_raw_line(row_line(head, th_style));
-        self.push_raw_line(hline("├", "┼", "┤", &widths));
+        self.push_raw_line(hline("╞", "╪", "╡", "═", &widths));
         for row in rows {
             self.push_raw_line(row_line(row, td_style));
         }
-        self.push_raw_line(hline("└", "┴", "┘", &widths));
+        self.push_raw_line(hline("└", "┴", "┘", "─", &widths));
         self.blank();
     }
 

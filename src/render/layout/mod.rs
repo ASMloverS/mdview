@@ -262,6 +262,17 @@ mod tests {
     }
 
     #[test]
+    fn table_header_double_separator() {
+        let lines = render("| a | b |\n|---|---|\n| 1 | 2 |", 40);
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.starts_with('╞') && l.contains('╪') && l.ends_with('╡')),
+            "double separator under header: {lines:?}"
+        );
+    }
+
+    #[test]
     fn renders_task_list() {
         let lines = render("- [x] done\n- [ ] todo", 40);
         assert!(lines.iter().any(|l| l.contains("☑ done")));
