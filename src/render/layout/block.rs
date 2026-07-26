@@ -67,17 +67,25 @@ impl<'a> Renderer<'a> {
     pub(super) fn blockquote(&mut self, inner: &[Block], chain: &[&'static str]) {
         let mut chain = chain.to_vec();
         chain.push("blockquote");
-        let lines = self.sub_render(inner, self.width.saturating_sub(2), &chain);
         let qstyle = self.scheme.style_for(&chain);
+        let lines = self.sub_render(inner, self.width.saturating_sub(2), &chain);
         let border = Computed {
             fg: qstyle.border.or(qstyle.fg),
+            bg: qstyle.bg,
             ..Computed::default()
         };
         self.blank();
         for line in lines {
             self.flush_line();
-            let mut l: SLine = vec![SSpan::new("▌ ".to_string(), border)];
-            l.extend(line);
+            let mut l: SLine = vec![SSpan::new("▎ ".to_string(), border)];
+            for mut span in line {
+                if span.style.bg.is_none() {
+                    span.style.bg = qstyle.bg;
+                }
+                l.push(span);
+            }
+            // Pad to full width so multi-line quotes form a continuous block.
+            super::decorate::bg_fill(&mut l, self.width, qstyle.bg);
             self.out.push(l);
         }
         self.blank();

@@ -340,4 +340,35 @@ mod tests {
             "exactly one rule after the wrapped heading: {lines:?}"
         );
     }
+
+    #[test]
+    fn blockquote_bar() {
+        let lines = render("> hello\n>\n> world", 40);
+        assert!(
+            lines.iter().filter(|l| l.starts_with("▎ ")).count() >= 2,
+            "quote lines start with the bar: {lines:?}"
+        );
+    }
+
+    #[test]
+    fn blockquote_bg_fills_rows() {
+        let doc = parse_document("> hi");
+        let scheme = Scheme {
+            name: "t".into(),
+            rules: crate::style::css::parse(
+                "blockquote { background: #112233; border-color: #445566 }",
+            ),
+        };
+        let r = render_document(&doc, &scheme, 40);
+        let line = r
+            .lines
+            .iter()
+            .find(|l| plain_of(l).contains("hi"))
+            .expect("quote line");
+        let bg = Some(crate::style::Rgb(0x11, 0x22, 0x33));
+        assert!(
+            line.iter().all(|s| s.style.bg == bg),
+            "every span painted, incl. padding: {line:?}"
+        );
+    }
 }
