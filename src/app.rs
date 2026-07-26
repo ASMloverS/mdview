@@ -594,4 +594,19 @@ mod tests {
         assert_eq!(r.cursor, 50);
         assert_eq!(r.scroll, 27); // 50 + 1 - 24
     }
+
+    #[test]
+    fn reload_clamps_cursor_and_scroll() {
+        let mut app = test_app(100, 24);
+        let r = app.reader.as_mut().unwrap();
+        r.cursor = 90;
+        r.scroll = 80;
+        app.reload_reader();
+        let r = app.reader.as_ref().unwrap();
+        // test.md 不存在 → 渲染为单行错误文本，cursor/scroll 都 clamp 到 0。
+        assert!(r.rendered.lines.len() < 100);
+        let last = r.rendered.lines.len() - 1;
+        assert!(r.cursor <= last);
+        assert!(r.scroll <= last);
+    }
 }

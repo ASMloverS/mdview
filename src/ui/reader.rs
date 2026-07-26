@@ -1,6 +1,6 @@
 //! Full-screen reader view with scroll and search.
 
-use super::{accent_style, chrome_style, convert, dim_style};
+use super::{accent_style, chrome_style, convert, cursor_style, dim_style};
 use crate::app::{content_width, App};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -26,10 +26,18 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         reader.width = want_width;
         reader.offset = want_offset;
         reader.scroll = scroll.min(reader.rendered.lines.len().saturating_sub(1));
+        reader.cursor = reader.cursor.min(reader.rendered.lines.len().saturating_sub(1));
     }
 
     let reader = app.reader.as_ref().unwrap();
-    let lines = convert(app, &reader.rendered);
+    let mut lines = convert(app, &reader.rendered);
+    // 光标行高亮：整行叠加背景，保留各 span 前景；行尾用填充 span 补齐。
+    if let Some(style) = cursor_style(app) {
+        if let Some(line) = lines.get_mut(reader.cursor) {
+            *line = std::mem::take(line).patch_style(style);
+            line.spans.push(Span::styled(" ".repeat(view.width as usize), style));
+        }
+    }
     let total = reader.rendered.lines.len();
     let pct = if total <= reader.view_height {
         100
@@ -74,4 +82,69 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Line::from(Span::styled(format!(" {right}"), dim_style(app))),
     ]);
     frame.render_widget(bar, chunks[1]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{Mode, Reader};
+    use crate::render::Rendered;
+    use crate::style::{ColorLevel, Scheme};
+    use ratatui::backend::TestBackend;
+    use ratatui::style::Color;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    fn test_app(lines: usize, cursor: usize) -> App {
+        let scheme = Scheme::load(crate::style::DEFAULT_THEME);
+        let mut app = App::new(scheme, ColorLevel::True, 100);
+        app.mode = Mode::Reader;
+        app.reader = Some(Reader {
+            path: PathBuf::from("test.md"),
+            rendered: Rendered {
+                lines: vec![Vec::new(); lines],
+                plain: vec![String::new(); lines],
+            },
+            // 与 30 列终端的 want_width/want_offset 一致，避免 draw 触发重排版。
+            width: 28,
+            offset: 0,
+            scroll: 0,
+            cursor,
+            view_height: 8,
+        });
+        app
+    }
+
+    #[test]
+    fn cursor_line_highlighted_full_width() {
+        let mut app = test_app(20, 2);
+        let want = app.scheme.element("cursor").bg.unwrap();
+        let bg = Color::Rgb(want.0, want.1, want.2);
+        let backend = TestBackend::new(30, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        // 边框内侧：cursor=2, scroll=0 → 屏幕行 y = 1 + 2 = 3。
+        for x in 1..29 {
+            assert_eq!(buf.cell((x, 3)).unwrap().bg, bg, "x={x}");
+        }
+        // 相邻行无高亮。
+        assert_ne!(buf.cell((1, 2)).unwrap().bg, bg);
+        assert_ne!(buf.cell((1, 4)).unwrap().bg, bg);
+    }
+
+    #[test]
+    fn no_cursor_element_means_no_highlight() {
+        let mut app = test_app(20, 2);
+        // 空规则主题：无 cursor 元素。
+        app.scheme = Scheme {
+            name: "empty".into(),
+            rules: Vec::new(),
+        };
+        let backend = TestBackend::new(30, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        assert_eq!(buf.cell((5, 3)).unwrap().bg, Color::Reset);
+    }
 }

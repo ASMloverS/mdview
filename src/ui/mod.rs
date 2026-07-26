@@ -69,6 +69,12 @@ pub fn dim_style(app: &App) -> Style {
     style
 }
 
+/// 光标行背景：主题 cursor 元素的 bg；未定义时不高亮。
+pub fn cursor_style(app: &App) -> Option<Style> {
+    let bg = app.scheme.element("cursor").bg?;
+    Some(Style::default().bg(app.level.to_ratatui(bg)))
+}
+
 /// Status line rendered at the bottom of a view.
 pub fn status_bar(frame: &mut Frame, app: &App, area: Rect, left: &str, right: &str) {
     let style = dim_style(app);
