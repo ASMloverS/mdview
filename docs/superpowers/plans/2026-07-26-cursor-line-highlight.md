@@ -23,7 +23,7 @@
 
 **背景：** 现状 `j/k` 等直接改 `reader.scroll`（`scroll_reader`，`src/app.rs:263-269`），`jump_match` 也直接赋 `scroll`（`src/app.rs:153-155`）。本任务改为光标语义。
 
-- [ ] **Step 1: 写失败测试（替换 tests 模块中 3 个 ctrl+f/b 旧测试）**
+- [x] **Step 1: 写失败测试（替换 tests 模块中 3 个 ctrl+f/b 旧测试）**
 
 把 `src/app.rs` tests 模块里的 `ctrl_f_scrolls_full_page`、`ctrl_b_scrolls_back_and_clamps_at_top`、`ctrl_f_clamps_at_bottom` 三个测试整体替换为以下测试，并在 `test_app` 的 `Reader { ... }` 字面量中加 `cursor: 0,`（位于 `scroll: 0,` 之后）：
 
@@ -131,12 +131,12 @@
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `cmd //c ".cargo-vc.bat test app::"`
 Expected: 编译失败（`Reader` 无 `cursor` 字段）
 
-- [ ] **Step 3: 实现光标状态与移动**
+- [x] **Step 3: 实现光标状态与移动**
 
 3a. `Reader` 结构体（`src/app.rs:25-32`）在 `scroll` 后加字段：
 
@@ -227,17 +227,17 @@ fn move_cursor(app: &mut App, delta: isize) {
 
 注意：`handle_mouse`（`src/app.rs:417-435`）继续调用 `scroll_reader`，不要改。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `cmd //c ".cargo-vc.bat test app::"`
 Expected: 全部 PASS（含保留的 `page_delta_full_screen_minus_overlap`）
 
-- [ ] **Step 5: 跑全量测试确认无回归、零警告**
+- [x] **Step 5: 跑全量测试确认无回归、零警告**
 
 Run: `cmd //c ".cargo-vc.bat test"`
 Expected: 全部 PASS，无 warning
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app.rs
@@ -252,7 +252,7 @@ git commit -m "✨ reader(feat): cursor line state with scroll-follow movement"
 - Modify: `assets/styles/dracula.css`、`github-light.css`、`gruvbox-dark.css`、`gruvbox-light.css`、`nord.css`、`solarized-dark.css`、`solarized-light.css`、`tokyo-night.css`
 - Test: `src/style/scheme.rs`（tests 模块）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 在 `src/style/scheme.rs` 的 tests 模块末尾（`default_theme_is_gruvbox_dark` 之后）加：
 
@@ -269,12 +269,12 @@ git commit -m "✨ reader(feat): cursor line state with scroll-follow movement"
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `cmd //c ".cargo-vc.bat test scheme"`
 Expected: FAIL（`builtin dracula lacks cursor background`）
 
-- [ ] **Step 3: 给 8 个内置主题各加一条 cursor 规则**
+- [x] **Step 3: 给 8 个内置主题各加一条 cursor 规则**
 
 在每个 css 文件的 `footnote { ... }` 行之后追加对应一行（颜色取该主题 body 与 pre 底色之间的中间色，保证在普通行和代码块行上都可见）：
 
@@ -318,12 +318,12 @@ cursor { background-color: #f6efdc; }
 cursor { background-color: #292e42; }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `cmd //c ".cargo-vc.bat test scheme"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add assets/styles/ src/style/scheme.rs
@@ -338,9 +338,9 @@ git commit -m "💄 style(feat): cursor element background in builtin themes"
 - Modify: `src/ui/mod.rs`（新增 `cursor_style`）
 - Modify: `src/ui/reader.rs`（draw 中应用高亮 + tests 模块）
 
-**前提知识：** ratatui 0.29 的 `Line::patch_style` 消费 `self` 并返回新 `Line`，且只补丁 `line.style`、不动各 span；`Paragraph` 渲染时只写 span grapheme 覆盖的单元格，`Line.style` 经 `styled_graphemes` 叠加到各 span（只覆盖已设置字段，因此 bg-only 补丁保留 fg），但不会填充行尾空白。因此整行高亮 = bg 补丁 + 追加填充 span 补齐行尾（Step 4 的实现即如此，填充 span 是必需而非备选）。
+**前提知识：** ratatui 0.29 的 `Line::patch_style` 消费 `self` 并返回新 `Line`，且只补丁 `line.style`、不动各 span；`Paragraph` 渲染时只写 span grapheme 覆盖的单元格，`Line.style` 经 `styled_graphemes` 叠加到各 span（只覆盖已设置字段，因此 bg-only 补丁保留 fg），但不会填充行尾空白。因此整行高亮 = 行 bg 补丁 + 逐 span bg 补丁（覆盖代码块/引用行 span 自带的 bg）+ 追加填充 span 补齐行尾（Step 4 的实现即如此，填充 span 是必需而非备选）。
 
-- [ ] **Step 1: `src/ui/mod.rs` 新增 `cursor_style`**
+- [x] **Step 1: `src/ui/mod.rs` 新增 `cursor_style`**
 
 在 `dim_style`（`src/ui/mod.rs:63-70`）之后加：
 
@@ -352,7 +352,7 @@ pub fn cursor_style(app: &App) -> Option<Style> {
 }
 ```
 
-- [ ] **Step 2: 写失败测试（TestBackend 验证整行高亮）**
+- [x] **Step 2: 写失败测试（TestBackend 验证整行高亮）**
 
 在 `src/ui/reader.rs` 文件末尾新增 tests 模块：
 
@@ -423,41 +423,45 @@ mod tests {
 }
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [x] **Step 3: 运行测试确认失败**
 
 Run: `cmd //c ".cargo-vc.bat test ui::reader"`
 Expected: FAIL（`cursor_line_highlighted_full_width` 断言不相等，当前无高亮逻辑）
 
-- [ ] **Step 4: 在 `reader::draw` 中应用高亮**
+- [x] **Step 4: 在 `reader::draw` 中应用高亮**
 
 `src/ui/reader.rs:32` 处 `let lines = convert(app, &reader.rendered);` 改为：
 
 ```rust
     let mut lines = convert(app, &reader.rendered);
-    // 光标行高亮：整行叠加背景，保留各 span 前景；行尾用填充 span 补齐。
+    // 光标行高亮：行 style 与各 span 都叠加光标背景（bg-only 补丁保留 fg），
+    // 行尾用填充 span 补齐。
     if let Some(style) = cursor_style(app) {
         if let Some(line) = lines.get_mut(reader.cursor) {
             *line = std::mem::take(line).patch_style(style);
+            for span in &mut line.spans {
+                span.style = span.style.patch(style);
+            }
             line.spans.push(Span::styled(" ".repeat(view.width as usize), style));
         }
     }
 ```
 
-注意：`Line::patch_style` 消费 `self`，需 `std::mem::take` 回写；`Paragraph` 不填充行尾空白，填充 span 是必需的（不是备选）。`view` 变量在 draw 中已存在；`Span` 经 `ratatui::prelude::*` 已在作用域。
+注意：`Line::patch_style` 消费 `self`，需 `std::mem::take` 回写；`Paragraph` 不填充行尾空白，填充 span 是必需的（不是备选）；代码块/引用行的 span 自带 bg，必须逐 span patch 才能被光标背景覆盖。`view` 变量在 draw 中已存在；`Span` 经 `ratatui::prelude::*` 已在作用域。
 
 并把文件头的 import 从 `use super::{accent_style, chrome_style, convert, dim_style};` 改为 `use super::{accent_style, chrome_style, convert, cursor_style, dim_style};`
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `cmd //c ".cargo-vc.bat test ui::reader"`
 Expected: 两个测试 PASS
 
-- [ ] **Step 6: 跑全量测试确认无回归、零警告**
+- [x] **Step 6: 跑全量测试确认无回归、零警告**
 
 Run: `cmd //c ".cargo-vc.bat test"`
 Expected: 全部 PASS，无 warning
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ui/mod.rs src/ui/reader.rs
@@ -468,7 +472,7 @@ git commit -m "✨ reader(feat): highlight cursor line full width"
 
 ### Task 4: 手动冒烟验证
 
-- [ ] **Step 1: 构建 release 并手动验证**
+- [x] **Step 1: 构建 release 并手动验证**
 
 Run: `cmd //c ".cargo-vc.bat build"`
 然后运行 `target\debug\mdview.exe README.md`，逐项验证：
@@ -480,4 +484,4 @@ Run: `cmd //c ".cargo-vc.bat build"`
 - `t` 切换几个主题，高亮色随主题变化；
 - `Esc`、`q` 正常退出。
 
-- [ ] **Step 2: 若一切正常，完结；若发现问题，回到对应 Task 修复**
+- [x] **Step 2: 若一切正常，完结；若发现问题，回到对应 Task 修复**

@@ -31,10 +31,14 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 
     let reader = app.reader.as_ref().unwrap();
     let mut lines = convert(app, &reader.rendered);
-    // 光标行高亮：整行叠加背景，保留各 span 前景；行尾用填充 span 补齐。
+    // 光标行高亮：行 style 与各 span 都叠加光标背景（bg-only 补丁保留 fg），
+    // 行尾用填充 span 补齐。
     if let Some(style) = cursor_style(app) {
         if let Some(line) = lines.get_mut(reader.cursor) {
             *line = std::mem::take(line).patch_style(style);
+            for span in &mut line.spans {
+                span.style = span.style.patch(style);
+            }
             line.spans.push(Span::styled(" ".repeat(view.width as usize), style));
         }
     }
@@ -152,6 +156,29 @@ mod tests {
         let buf = terminal.backend().buffer();
         let cell = buf.cell((1, 3)).unwrap();
         assert_eq!(cell.symbol(), "x");
+        assert_eq!(cell.fg, Color::Rgb(255, 0, 0));
+        assert_eq!(cell.bg, bg);
+    }
+
+    #[test]
+    fn cursor_line_overrides_span_background() {
+        let mut app = test_app(20, 2);
+        // 模拟代码块行：span 自带 bg，光标背景必须覆盖它、保留 fg。
+        app.reader.as_mut().unwrap().rendered.lines[2] = vec![SSpan::new(
+            "x",
+            Computed {
+                fg: Some(Rgb(255, 0, 0)),
+                bg: Some(Rgb(60, 56, 54)),
+                ..Computed::default()
+            },
+        )];
+        let want = app.scheme.element("cursor").bg.unwrap();
+        let bg = Color::Rgb(want.0, want.1, want.2);
+        let backend = TestBackend::new(30, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        let cell = buf.cell((1, 3)).unwrap();
         assert_eq!(cell.fg, Color::Rgb(255, 0, 0));
         assert_eq!(cell.bg, bg);
     }
