@@ -1,0 +1,30 @@
+/* mdview builtin scheme: github-light */
+body { color: #1f2328; background-color: #ffffff; }
+h1 { color: #1f2328; font-weight: bold; }
+h2 { color: #1f2328; font-weight: bold; }
+h3 { color: #0969da; font-weight: bold; }
+h4 { color: #1a7f37; font-weight: bold; }
+h5 { color: #bc4c00; font-weight: bold; }
+h6 { color: #59636e; font-weight: bold; }
+p { color: #1f2328; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+del { color: #59636e; text-decoration: line-through; }
+code { color: #cf222e; background-color: #eff1f3; }
+pre { color: #1f2328; background-color: #f6f8fa; }
+a { color: #0969da; text-decoration: underline; }
+blockquote { color: #59636e; border-color: #d1d9e0; }
+li { color: #0969da; }
+table, th, td { color: #1f2328; border-color: #d1d9e0; }
+th { font-weight: bold; }
+hr { border-color: #d1d9e0; }
+img { color: #59636e; }
+math { color: #8250df; font-style: italic; }
+footnote { color: #59636e; }
+syntax-keyword { color: #cf222e; }
+syntax-string { color: #0a3069; }
+syntax-comment { color: #6e7781; font-style: italic; }
+syntax-function { color: #8250df; }
+syntax-type { color: #953800; }
+syntax-number { color: #0550ae; }
+syntax-operator { color: #1f2328; }

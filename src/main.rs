@@ -1,0 +1,78 @@
+//! mdview — terminal markdown renderer with a TUI file browser.
+
+mod app;
+mod config;
+mod highlight;
+mod markdown;
+mod math;
+mod render;
+mod style;
+mod ui;
+
+use anyhow::Result;
+use clap::Parser;
+use config::Config;
+use std::io::{IsTerminal, Read};
+use std::path::PathBuf;
+use style::{ColorLevel, Scheme, DEFAULT_THEME};
+
+#[derive(Parser)]
+#[command(name = "mdview", version, about = "Terminal markdown renderer")]
+struct Cli {
+    /// Markdown file to open directly. With no file, opens the file browser.
+    file: Option<PathBuf>,
+
+    /// Theme name: a builtin scheme or `md-styles/<name>.css`.
+    #[arg(short, long)]
+    theme: Option<String>,
+
+    /// Maximum content width in columns.
+    #[arg(short = 'w', long)]
+    max_width: Option<usize>,
+
+    /// List all available themes and exit.
+    #[arg(long)]
+    list_themes: bool,
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    if cli.list_themes {
+        for name in Scheme::available() {
+            println!("{name}");
+        }
+        return Ok(());
+    }
+
+    let cfg = Config::load();
+    let theme_name = cli
+        .theme
+        .or(cfg.theme)
+        .unwrap_or_else(|| DEFAULT_THEME.to_string());
+    let scheme = Scheme::load(&theme_name);
+    let level = ColorLevel::detect();
+    let max_width = cli.max_width.or(cfg.max_width).unwrap_or(100);
+
+    // Pipe mode: markdown on stdin, ANSI on stdout.
+    let stdin_is_pipe = !std::io::stdin().is_terminal();
+    if cli.file.is_none() && stdin_is_pipe {
+        let mut text = String::new();
+        std::io::stdin().read_to_string(&mut text)?;
+        let doc = markdown::parse_document(&text);
+        let width = terminal_width().min(max_width);
+        let rendered = render::layout::render_document(&doc, &scheme, width);
+        print!("{}", render::ansi::render_ansi(&rendered.lines, level));
+        return Ok(());
+    }
+
+    app::run(cli.file, scheme, level, max_width, cfg.mouse.unwrap_or(true))
+}
+
+fn terminal_width() -> usize {
+    crossterm::terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
+        .saturating_sub(2)
+        .max(20)
+}

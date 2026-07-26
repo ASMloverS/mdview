@@ -1,0 +1,30 @@
+/* mdview builtin scheme: gruvbox-light */
+body { color: #3c3836; background-color: #fbf1c7; }
+h1 { color: #9d0006; font-weight: bold; }
+h2 { color: #af3a03; font-weight: bold; }
+h3 { color: #b57614; font-weight: bold; }
+h4 { color: #79740e; font-weight: bold; }
+h5 { color: #427b58; font-weight: bold; }
+h6 { color: #928374; font-weight: bold; }
+p { color: #3c3836; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+del { color: #928374; text-decoration: line-through; }
+code { color: #b57614; background-color: #ebdbb2; }
+pre { color: #3c3836; background-color: #ebdbb2; }
+a { color: #076678; text-decoration: underline; }
+blockquote { color: #665c54; border-color: #d5c4a1; }
+li { color: #af3a03; }
+table, th, td { color: #3c3836; border-color: #d5c4a1; }
+th { font-weight: bold; }
+hr { border-color: #d5c4a1; }
+img { color: #928374; }
+math { color: #8f3f71; font-style: italic; }
+footnote { color: #928374; }
+syntax-keyword { color: #9d0006; }
+syntax-string { color: #79740e; }
+syntax-comment { color: #928374; font-style: italic; }
+syntax-function { color: #79740e; }
+syntax-type { color: #b57614; }
+syntax-number { color: #8f3f71; }
+syntax-operator { color: #427b58; }

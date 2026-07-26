@@ -1,0 +1,30 @@
+/* mdview builtin scheme: solarized-light */
+body { color: #657b83; background-color: #fdf6e3; }
+h1 { color: #268bd2; font-weight: bold; }
+h2 { color: #2aa198; font-weight: bold; }
+h3 { color: #859900; font-weight: bold; }
+h4 { color: #b58900; font-weight: bold; }
+h5 { color: #cb4b16; font-weight: bold; }
+h6 { color: #93a1a1; font-weight: bold; }
+p { color: #657b83; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+del { color: #93a1a1; text-decoration: line-through; }
+code { color: #2aa198; background-color: #eee8d5; }
+pre { color: #657b83; background-color: #eee8d5; }
+a { color: #268bd2; text-decoration: underline; }
+blockquote { color: #839496; border-color: #eee8d5; }
+li { color: #2aa198; }
+table, th, td { color: #657b83; border-color: #eee8d5; }
+th { font-weight: bold; }
+hr { border-color: #eee8d5; }
+img { color: #93a1a1; }
+math { color: #6c71c4; font-style: italic; }
+footnote { color: #93a1a1; }
+syntax-keyword { color: #859900; }
+syntax-string { color: #2aa198; }
+syntax-comment { color: #93a1a1; font-style: italic; }
+syntax-function { color: #268bd2; }
+syntax-type { color: #b58900; }
+syntax-number { color: #d33682; }
+syntax-operator { color: #657b83; }
