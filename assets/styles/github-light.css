@@ -1,7 +1,7 @@
 /* mdview builtin scheme: github-light */
 body { color: #1f2328; background-color: #ffffff; }
-h1 { color: #1f2328; font-weight: bold; }
-h2 { color: #1f2328; font-weight: bold; }
+h1 { color: #1f2328; font-weight: bold; border-color: #1f2328; }
+h2 { color: #1f2328; font-weight: bold; border-color: #1f2328; }
 h3 { color: #0969da; font-weight: bold; }
 h4 { color: #1a7f37; font-weight: bold; }
 h5 { color: #bc4c00; font-weight: bold; }
@@ -13,7 +13,7 @@ del { color: #59636e; text-decoration: line-through; }
 code { color: #cf222e; background-color: #eff1f3; }
 pre { color: #1f2328; background-color: #f6f8fa; }
 a { color: #0969da; text-decoration: underline; }
-blockquote { color: #59636e; border-color: #d1d9e0; }
+blockquote { color: #59636e; border-color: #d1d9e0; background: #f6f8fa; }
 li { color: #0969da; }
 table, th, td { color: #1f2328; border-color: #d1d9e0; }
 th { font-weight: bold; }

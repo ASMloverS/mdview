@@ -1,7 +1,7 @@
 /* mdview builtin scheme: dracula */
 body { color: #f8f8f2; background-color: #282a36; }
-h1 { color: #bd93f9; font-weight: bold; }
-h2 { color: #8be9fd; font-weight: bold; }
+h1 { color: #bd93f9; font-weight: bold; border-color: #bd93f9; }
+h2 { color: #8be9fd; font-weight: bold; border-color: #8be9fd; }
 h3 { color: #ff79c6; font-weight: bold; }
 h4 { color: #50fa7b; font-weight: bold; }
 h5 { color: #f1fa8c; font-weight: bold; }
@@ -13,7 +13,7 @@ del { color: #6272a4; text-decoration: line-through; }
 code { color: #ffb86c; background-color: #44475a; }
 pre { color: #f8f8f2; background-color: #44475a; }
 a { color: #8be9fd; text-decoration: underline; }
-blockquote { color: #adb2c4; border-color: #44475a; }
+blockquote { color: #adb2c4; border-color: #44475a; background: #44475a; }
 li { color: #ff79c6; }
 table, th, td { color: #f8f8f2; border-color: #44475a; }
 th { font-weight: bold; }

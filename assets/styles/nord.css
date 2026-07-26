@@ -1,7 +1,7 @@
 /* mdview builtin scheme: nord */
 body { color: #d8dee9; background-color: #2e3440; }
-h1 { color: #81a1c1; font-weight: bold; }
-h2 { color: #88c0d0; font-weight: bold; }
+h1 { color: #81a1c1; font-weight: bold; border-color: #81a1c1; }
+h2 { color: #88c0d0; font-weight: bold; border-color: #88c0d0; }
 h3 { color: #8fbcbb; font-weight: bold; }
 h4 { color: #a3be8c; font-weight: bold; }
 h5 { color: #ebcb8b; font-weight: bold; }
@@ -13,7 +13,7 @@ del { color: #4c566a; text-decoration: line-through; }
 code { color: #ebcb8b; background-color: #3b4252; }
 pre { color: #d8dee9; background-color: #3b4252; }
 a { color: #88c0d0; text-decoration: underline; }
-blockquote { color: #9da8bb; border-color: #434c5e; }
+blockquote { color: #9da8bb; border-color: #434c5e; background: #3b4252; }
 li { color: #81a1c1; }
 table, th, td { color: #d8dee9; border-color: #434c5e; }
 th { font-weight: bold; }

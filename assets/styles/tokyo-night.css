@@ -1,7 +1,7 @@
 /* mdview builtin scheme: tokyo-night */
 body { color: #c0caf5; background-color: #1a1b26; }
-h1 { color: #7aa2f7; font-weight: bold; }
-h2 { color: #7dcfff; font-weight: bold; }
+h1 { color: #7aa2f7; font-weight: bold; border-color: #7aa2f7; }
+h2 { color: #7dcfff; font-weight: bold; border-color: #7dcfff; }
 h3 { color: #bb9af7; font-weight: bold; }
 h4 { color: #9ece6a; font-weight: bold; }
 h5 { color: #e0af68; font-weight: bold; }
@@ -13,7 +13,7 @@ del { color: #565f89; text-decoration: line-through; }
 code { color: #bb9af7; background-color: #24283b; }
 pre { color: #c0caf5; background-color: #24283b; }
 a { color: #7dcfff; text-decoration: underline; }
-blockquote { color: #9aa5ce; border-color: #3b4261; }
+blockquote { color: #9aa5ce; border-color: #3b4261; background: #24283b; }
 li { color: #7aa2f7; }
 table, th, td { color: #c0caf5; border-color: #3b4261; }
 th { font-weight: bold; }
