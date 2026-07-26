@@ -13,7 +13,7 @@ del { color: #93a1a1; text-decoration: line-through; }
 code { color: #2aa198; background-color: #eee8d5; }
 pre { color: #657b83; background-color: #eee8d5; }
 a { color: #268bd2; text-decoration: underline; }
-blockquote { color: #839496; border-color: #eee8d5; background: #eee8d5; }
+blockquote { color: #839496; border-color: #93a1a1; background: #eee8d5; }
 li { color: #2aa198; }
 table, th, td { color: #657b83; border-color: #eee8d5; }
 th { font-weight: bold; }

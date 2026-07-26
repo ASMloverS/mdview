@@ -34,12 +34,10 @@ impl SSpan {
 /// One terminal line as a list of styled spans.
 pub type SLine = Vec<SSpan>;
 
-/// Rendered document: styled lines plus collected link targets.
+/// Rendered document: styled lines plus their plain text.
 #[derive(Debug, Default)]
 pub struct Rendered {
     pub lines: Vec<SLine>,
-    /// (display index, url) for the trailing link list.
-    pub links: Vec<String>,
     /// Plain text of each line, for search.
     pub plain: Vec<String>,
 }

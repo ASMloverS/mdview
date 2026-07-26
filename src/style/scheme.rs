@@ -90,6 +90,7 @@ pub struct Scheme {
 }
 
 impl Scheme {
+    #[cfg(test)]
     pub fn builtin_names() -> Vec<&'static str> {
         BUILTINS.iter().map(|(n, _)| *n).collect()
     }
@@ -255,7 +256,7 @@ mod tests {
         std::fs::write(exe_dir.join("nord.css"), "h1 { color: #010203 }").unwrap();
         std::fs::write(cwd_dir.join("nord.css"), "h1 { color: #040506 }").unwrap();
         std::fs::write(exe_dir.join("exe-only.css"), "h1 { color: #070809 }").unwrap();
-        let dirs = [cwd_dir.clone(), exe_dir.clone()];
+        let dirs = [cwd_dir, exe_dir];
 
         // cwd 目录优先于 exe 目录。
         let s = load_from_dirs(&dirs, "nord").unwrap();
@@ -270,6 +271,7 @@ mod tests {
         assert!(names.iter().any(|n| n == "nord"));
         assert!(names.iter().any(|n| n == "exe-only"));
         assert!(names.iter().any(|n| n == "tokyo-night"));
+        assert_eq!(names.iter().filter(|n| *n == "nord").count(), 1);
 
         std::fs::remove_dir_all(&base).ok();
     }

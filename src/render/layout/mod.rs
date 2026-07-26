@@ -87,7 +87,6 @@ impl<'a> Renderer<'a> {
         let plain = self.out.iter().map(plain_of).collect();
         Rendered {
             lines: std::mem::take(&mut self.out),
-            links: std::mem::take(&mut self.links),
             plain,
         }
     }
@@ -263,9 +262,11 @@ mod tests {
 
     #[test]
     fn centers_with_offset() {
-        let lines = render_off("hello", 20, 5);
+        let lines = render_off("hello\n\nworld", 20, 5);
         let first = lines.iter().find(|l| !l.trim().is_empty()).unwrap();
         assert!(first.starts_with("     hello"), "offset pad: {first:?}");
+        let blank = lines.iter().find(|l| l.is_empty()).unwrap();
+        assert_eq!(blank, &String::new(), "blank lines stay unpadded");
     }
 
     #[test]
@@ -329,6 +330,9 @@ mod tests {
         assert!(body[0].starts_with("1 │ "), "line numbers: {body:?}");
         assert!(body[1].starts_with("2 │ "));
         assert!(body[0].contains("rust"), "lang tag on first row: {:?}", body[0]);
+        let w: usize = body[0].chars().count();
+        assert_eq!(w, 40, "tag row painted to full width");
+        assert!(body[0].ends_with(" rust "), "tag at right edge: {:?}", body[0]);
     }
 
     #[test]
@@ -402,5 +406,29 @@ mod tests {
             line.iter().all(|s| s.style.bg == bg),
             "every span painted, incl. padding: {line:?}"
         );
+        let w: usize = line.iter().map(|s| text_width(&s.text)).sum();
+        assert_eq!(w, 40, "padding pinned: {line:?}");
+    }
+
+    #[test]
+    fn blockquote_preserves_inner_backgrounds() {
+        let doc = parse_document("> `code` text");
+        let scheme = Scheme {
+            name: "t".into(),
+            rules: crate::style::css::parse(
+                "blockquote { background: #112233 } code { background: #445566 }",
+            ),
+        };
+        let r = render_document(&doc, &scheme, 40, 0);
+        let line = r
+            .lines
+            .iter()
+            .find(|l| plain_of(l).contains("code"))
+            .expect("quote line");
+        let code_span = line
+            .iter()
+            .find(|s| s.text.contains("code"))
+            .expect("code span");
+        assert_eq!(code_span.style.bg, Some(crate::style::Rgb(0x44, 0x55, 0x66)));
     }
 }
