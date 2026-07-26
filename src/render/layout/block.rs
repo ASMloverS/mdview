@@ -7,31 +7,57 @@ use crate::style::Computed;
 impl<'a> Renderer<'a> {
     pub(super) fn code_block(&mut self, lang: &Option<String>, code: &str) {
         let pre = self.scheme.style_for(&["body", "pre"]);
+        let dim = self.scheme.element("footnote");
         let highlighted = self.highlighter.highlight(code, lang.as_deref());
+
+        // Gutter: right-aligned line numbers + separator, painted with pre bg.
+        let num_w = highlighted.len().to_string().len();
+        let gutter_w = num_w + 3; // "N │ "
+        let code_w = self.width.saturating_sub(gutter_w).max(10);
+        let gutter_style = Computed {
+            fg: dim.fg,
+            bg: pre.bg,
+            ..Computed::default()
+        };
+
         self.blank();
-        for runs in highlighted {
+        for (i, runs) in highlighted.iter().enumerate() {
             self.flush_line();
-            let mut line: SLine = Vec::new();
+            let mut line: SLine = vec![SSpan::new(
+                format!("{:>num_w$} │ ", i + 1),
+                gutter_style,
+            )];
             let mut col = 0;
             for (color, text) in runs {
-                col += text_width(&text);
-                let style = Computed {
-                    fg: Some(color),
-                    bg: pre.bg,
-                    ..Computed::default()
-                };
-                line.push(SSpan::new(text, style));
+                col += text_width(text);
+                line.push(SSpan::new(
+                    text.clone(),
+                    Computed {
+                        fg: Some(*color),
+                        bg: pre.bg,
+                        ..Computed::default()
+                    },
+                ));
             }
-            if let Some(bg) = pre.bg {
-                if col < self.width {
-                    line.push(SSpan::new(
-                        " ".repeat(self.width - col),
-                        Computed {
-                            bg: Some(bg),
-                            ..Computed::default()
-                        },
-                    ));
-                }
+            // Language tag right-aligned on the first row, inside the padding.
+            let tag = if i == 0 {
+                lang.as_ref().map(|l| format!(" {l} "))
+            } else {
+                None
+            };
+            let tag_w = tag.as_ref().map(|t| text_width(t)).unwrap_or(0);
+            let pad_w = code_w.saturating_sub(col);
+            if let Some(tag) = tag.filter(|_| tag_w + 1 <= pad_w) {
+                line.push(SSpan::new(
+                    " ".repeat(pad_w - tag_w),
+                    Computed {
+                        bg: pre.bg,
+                        ..Computed::default()
+                    },
+                ));
+                line.push(SSpan::new(tag, gutter_style));
+            } else {
+                super::decorate::bg_fill(&mut line, code_w, pre.bg);
             }
             self.out.push(line);
         }

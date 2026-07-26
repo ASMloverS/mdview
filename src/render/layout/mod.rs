@@ -288,4 +288,39 @@ mod tests {
         let lines = render("[site](https://example.com)", 60);
         assert!(lines.iter().any(|l| l.contains("[1] https://example.com")));
     }
+
+    #[test]
+    fn code_block_gutter_and_lang_tag() {
+        let lines = render("```rust\nfn main() {}\nlet x = 1;\n```", 40);
+        let body: Vec<&String> = lines.iter().filter(|l| l.contains('│')).collect();
+        assert_eq!(body.len(), 2, "one gutter row per code line: {lines:?}");
+        assert!(body[0].starts_with("1 │ "), "line numbers: {body:?}");
+        assert!(body[1].starts_with("2 │ "));
+        assert!(body[0].contains("rust"), "lang tag on first row: {:?}", body[0]);
+    }
+
+    #[test]
+    fn code_block_bg_fills_line() {
+        let doc = parse_document("```\nhi\n```");
+        let scheme = Scheme::load(crate::style::DEFAULT_THEME);
+        let r = render_document(&doc, &scheme, 40);
+        let pre_bg = scheme.style_for(&["body", "pre"]).bg;
+        assert!(pre_bg.is_some());
+        let line = r
+            .lines
+            .iter()
+            .find(|l| plain_of(l).contains("hi"))
+            .expect("code line");
+        assert!(line.iter().all(|s| s.style.bg == pre_bg), "whole row painted");
+    }
+
+    #[test]
+    fn heading_rule_after_wrapped_text() {
+        let lines = render("# a long heading that wraps over two lines", 20);
+        assert_eq!(
+            lines.iter().filter(|l| *l == &"═".repeat(20)).count(),
+            1,
+            "exactly one rule after the wrapped heading: {lines:?}"
+        );
+    }
 }
