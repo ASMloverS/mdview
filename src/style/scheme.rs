@@ -36,7 +36,7 @@ const BUILTINS: &[(&str, &str)] = &[
     ("gruvbox-light", include_str!("../../assets/styles/gruvbox-light.css")),
 ];
 
-pub const DEFAULT_THEME: &str = "tokyo-night";
+pub const DEFAULT_THEME: &str = "gruvbox-dark";
 
 /// User CSS theme directories in priority order: `./md-styles` first,
 /// then `md-styles` next to the executable.
@@ -274,5 +274,11 @@ mod tests {
         assert_eq!(names.iter().filter(|n| *n == "nord").count(), 1);
 
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn default_theme_is_gruvbox_dark() {
+        assert_eq!(DEFAULT_THEME, "gruvbox-dark");
+        assert!(!Scheme::load(DEFAULT_THEME).rules.is_empty());
     }
 }

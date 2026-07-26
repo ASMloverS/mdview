@@ -1,5 +1,6 @@
 //! TUI application: state machine and event loop.
 
+use crate::config::Config;
 use crate::markdown::parse_document;
 use crate::render::layout::render_document;
 use crate::render::Rendered;
@@ -301,7 +302,7 @@ fn handle_key(app: &mut App, key: KeyEvent) {
     // Theme picker captures navigation when open.
     if let Some(sel) = app.picker {
         match key.code {
-            KeyCode::Esc | KeyCode::Char('t') => app.picker = None,
+            KeyCode::Esc | KeyCode::Char('t') => close_picker(app),
             KeyCode::Char('j') | KeyCode::Down => {
                 let next = (sel + 1) % app.schemes.len();
                 app.picker = Some(next);
@@ -314,7 +315,7 @@ fn handle_key(app: &mut App, key: KeyEvent) {
                 let name = app.schemes[next].clone();
                 app.apply_scheme(&name);
             }
-            KeyCode::Enter => app.picker = None,
+            KeyCode::Enter => close_picker(app),
             _ => {}
         }
         return;
@@ -405,6 +406,12 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         }
         _ => {}
     }
+}
+
+/// Close the theme picker and persist the current theme selection.
+fn close_picker(app: &mut App) {
+    app.picker = None;
+    Config::save_theme(&app.scheme.name);
 }
 
 fn handle_mouse(app: &mut App, kind: MouseEventKind) {
