@@ -88,8 +88,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 mod tests {
     use super::*;
     use crate::app::{Mode, Reader};
-    use crate::render::Rendered;
-    use crate::style::{ColorLevel, Scheme};
+    use crate::render::{Rendered, SSpan};
+    use crate::style::{ColorLevel, Computed, Rgb, Scheme};
     use ratatui::backend::TestBackend;
     use ratatui::style::Color;
     use ratatui::Terminal;
@@ -131,6 +131,29 @@ mod tests {
         // 相邻行无高亮。
         assert_ne!(buf.cell((1, 2)).unwrap().bg, bg);
         assert_ne!(buf.cell((1, 4)).unwrap().bg, bg);
+    }
+
+    #[test]
+    fn cursor_line_keeps_span_foreground() {
+        let mut app = test_app(20, 2);
+        // 光标行放一个带独立前景的 span：高亮只改 bg。
+        app.reader.as_mut().unwrap().rendered.lines[2] = vec![SSpan::new(
+            "x",
+            Computed {
+                fg: Some(Rgb(255, 0, 0)),
+                ..Computed::default()
+            },
+        )];
+        let want = app.scheme.element("cursor").bg.unwrap();
+        let bg = Color::Rgb(want.0, want.1, want.2);
+        let backend = TestBackend::new(30, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        let buf = terminal.backend().buffer();
+        let cell = buf.cell((1, 3)).unwrap();
+        assert_eq!(cell.symbol(), "x");
+        assert_eq!(cell.fg, Color::Rgb(255, 0, 0));
+        assert_eq!(cell.bg, bg);
     }
 
     #[test]

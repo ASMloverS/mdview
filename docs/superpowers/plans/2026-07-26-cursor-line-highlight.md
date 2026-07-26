@@ -4,7 +4,7 @@
 
 **Goal:** 阅读模式引入光标行：所有键盘移动操作移动光标、滚动跟随，光标行整行（满视口宽度）以主题 `cursor` 元素的背景色高亮。
 
-**Architecture:** 光标是纯 UI 状态（`Reader.cursor`），不进渲染管线；移动键先更新光标再由 `follow_cursor` 调整 scroll；高亮在 `reader::draw` 里 `convert()` 之后用 `Line::patch_style` 叠加背景（ratatui 0.29 会把 `Line.style` 应用到整行宽度，含两侧留白）。
+**Architecture:** 光标是纯 UI 状态（`Reader.cursor`），不进渲染管线；移动键先更新光标再由 `follow_cursor` 调整 scroll；高亮在 `reader::draw` 里 `convert()` 之后对光标行叠加 bg 补丁并追加填充 span，实现整行宽度高亮（ratatui 0.29 的 `Paragraph` 只写 grapheme 覆盖的单元格，不会自动填充行尾）。
 
 **Tech Stack:** Rust, ratatui 0.29, crossterm 0.28
 
@@ -338,7 +338,7 @@ git commit -m "💄 style(feat): cursor element background in builtin themes"
 - Modify: `src/ui/mod.rs`（新增 `cursor_style`）
 - Modify: `src/ui/reader.rs`（draw 中应用高亮 + tests 模块）
 
-**前提知识：** ratatui 0.29 的 `Paragraph` 会把 `Line.style` 应用到整行宽度（含行尾空白），`Line::patch_style` 同时补丁行自身 style 与所有 span 的 style（只覆盖已设置的字段，因此只改 bg、保留 fg）。Step 2 的 TestBackend 测试会验证这一行为；若测试显示行尾空白没有 bg（ratatui 行为不符预期），执行 Step 3 的备选方案。
+**前提知识：** ratatui 0.29 的 `Line::patch_style` 消费 `self` 并返回新 `Line`，且只补丁 `line.style`、不动各 span；`Paragraph` 渲染时只写 span grapheme 覆盖的单元格，`Line.style` 经 `styled_graphemes` 叠加到各 span（只覆盖已设置字段，因此 bg-only 补丁保留 fg），但不会填充行尾空白。因此整行高亮 = bg 补丁 + 追加填充 span 补齐行尾（Step 4 的实现即如此，填充 span 是必需而非备选）。
 
 - [ ] **Step 1: `src/ui/mod.rs` 新增 `cursor_style`**
 
@@ -434,13 +434,16 @@ Expected: FAIL（`cursor_line_highlighted_full_width` 断言不相等，当前�
 
 ```rust
     let mut lines = convert(app, &reader.rendered);
-    // 光标行高亮：整行叠加背景，保留各 span 前景。
+    // 光标行高亮：整行叠加背景，保留各 span 前景；行尾用填充 span 补齐。
     if let Some(style) = cursor_style(app) {
         if let Some(line) = lines.get_mut(reader.cursor) {
-            line.patch_style(style);
+            *line = std::mem::take(line).patch_style(style);
+            line.spans.push(Span::styled(" ".repeat(view.width as usize), style));
         }
     }
 ```
+
+注意：`Line::patch_style` 消费 `self`，需 `std::mem::take` 回写；`Paragraph` 不填充行尾空白，填充 span 是必需的（不是备选）。`view` 变量在 draw 中已存在；`Span` 经 `ratatui::prelude::*` 已在作用域。
 
 并把文件头的 import 从 `use super::{accent_style, chrome_style, convert, dim_style};` 改为 `use super::{accent_style, chrome_style, convert, cursor_style, dim_style};`
 
@@ -448,19 +451,6 @@ Expected: FAIL（`cursor_line_highlighted_full_width` 断言不相等，当前�
 
 Run: `cmd //c ".cargo-vc.bat test ui::reader"`
 Expected: 两个测试 PASS
-
-若 `cursor_line_highlighted_full_width` 只在行尾空白处失败（spans 覆盖区有 bg、行尾无 bg），改用备选方案：高亮分支改为追加填充 span ——
-
-```rust
-    if let Some(style) = cursor_style(app) {
-        if let Some(line) = lines.get_mut(reader.cursor) {
-            line.patch_style(style);
-            line.spans.push(Span::styled(" ".repeat(view.width as usize), style));
-        }
-    }
-```
-
-（`view` 变量在 draw 中已存在；`Span` 经 `ratatui::prelude::*` 已在作用域。）
 
 - [ ] **Step 6: 跑全量测试确认无回归、零警告**
 
