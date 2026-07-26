@@ -21,6 +21,7 @@ hr { border-color: #3b4261; }
 img { color: #565f89; }
 math { color: #e0af68; font-style: italic; }
 footnote { color: #565f89; }
+cursor { background-color: #292e42; }
 syntax-keyword { color: #bb9af7; }
 syntax-string { color: #9ece6a; }
 syntax-comment { color: #565f89; font-style: italic; }

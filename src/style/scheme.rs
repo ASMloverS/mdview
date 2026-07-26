@@ -281,4 +281,15 @@ mod tests {
         assert_eq!(DEFAULT_THEME, "gruvbox-dark");
         assert!(!Scheme::load(DEFAULT_THEME).rules.is_empty());
     }
+
+    #[test]
+    fn builtin_schemes_define_cursor_background() {
+        for name in Scheme::builtin_names() {
+            let s = Scheme::load(name);
+            assert!(
+                s.element("cursor").bg.is_some(),
+                "builtin {name} lacks cursor background"
+            );
+        }
+    }
 }
