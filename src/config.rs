@@ -1,7 +1,7 @@
-//! Local configuration: `config.toml` in the tool's working directory.
+//! Local configuration: `config.toml` next to the executable.
 
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
@@ -13,20 +13,30 @@ pub struct Config {
     pub mouse: Option<bool>,
 }
 
+/// Path of `config.toml` next to the executable; falls back to the
+/// cwd-relative path when the exe location is unavailable.
+fn config_path() -> std::path::PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("config.toml")))
+        .unwrap_or_else(|| PathBuf::from("config.toml"))
+}
+
 impl Config {
-    /// Load `./config.toml`; missing or invalid files yield defaults.
+    /// Load `config.toml` next to the executable; missing or invalid
+    /// files yield defaults.
     pub fn load() -> Config {
-        std::fs::read_to_string("config.toml")
+        std::fs::read_to_string(config_path())
             .ok()
             .and_then(|text| toml::from_str(&text).ok())
             .unwrap_or_default()
     }
 
-    /// Persist the selected theme into `./config.toml`, preserving all
-    /// other keys. Best-effort: IO errors are ignored and a malformed
-    /// existing file is never overwritten.
+    /// Persist the selected theme into `config.toml` next to the
+    /// executable, preserving all other keys. Best-effort: IO errors are
+    /// ignored and a malformed existing file is never overwritten.
     pub fn save_theme(name: &str) {
-        let _ = save_theme_to(Path::new("config.toml"), name);
+        let _ = save_theme_to(&config_path(), name);
     }
 }
 
@@ -102,6 +112,14 @@ mod tests {
         assert!(!save_theme_to(&p, "nord").unwrap());
         assert_eq!(std::fs::read_to_string(&p).unwrap(), original);
         cleanup(&p);
+    }
+
+    #[test]
+    fn config_path_is_next_to_executable() {
+        let p = config_path();
+        assert_eq!(p.file_name().and_then(|n| n.to_str()), Some("config.toml"));
+        let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+        assert_eq!(p.parent().unwrap(), exe_dir);
     }
 
     #[test]

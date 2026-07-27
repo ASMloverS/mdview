@@ -8,6 +8,8 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
   Git's `link.exe` and fails to link:
   - `cmd //c ".cargo-vc.bat test"` (from Git Bash)
   - `cmd //c ".cargo-vc.bat build"`
+- Distribution build: `build.bat` (release) / `build.bat -d` (debug) —
+  assembles `bin/` (mdview.exe + config.toml + md-styles/).
 - Run the full test suite before claiming any change is done. Zero-warning
   builds are the norm; keep it that way.
 
@@ -34,10 +36,12 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 ## Conventions
 
 - Themes: builtins live in `assets/styles/*.css`; user themes in
-  `md-styles/*.css` (lookup: cwd → exe-adjacent → builtin). CSS subset:
-  element/descendant selectors, color/background/border/font properties only.
-- Default theme: `gruvbox-dark`. Config: `./config.toml` (theme persisted on
-  picker close; preserve other keys when writing).
+  `md-styles/*.css` next to the executable (lookup: exe-adjacent →
+  builtin). CSS subset: element/descendant selectors,
+  color/background/border/font properties only.
+- Default theme: `gruvbox-dark`. Config: `config.toml` next to the
+  executable (theme persisted on picker close; preserve other keys when
+  writing).
 - Tests: in-file `#[cfg(test)] mod tests`. Render tests assert on plain-text
   output (`render_document(...).plain`) and on span styles.
 - Code comments: Chinese, concise — match the existing style.
