@@ -6,7 +6,7 @@ if /i "%~1"=="--help" goto help
 if "%~1"=="" set "PROFILE=release" & goto build
 if /i "%~1"=="-d" set "PROFILE=debug" & goto build
 if /i "%~1"=="--debug" set "PROFILE=debug" & goto build
-echo Unknown option: %~1 1>&2
+1>&2 echo Unknown option: %~1
 call :print_help
 exit /b 1
 
@@ -15,17 +15,19 @@ call :print_help
 exit /b 0
 
 :build
+pushd "%~dp0"
 if "%PROFILE%"=="release" (
     call "%~dp0.cargo-vc.bat" build --release
 ) else (
     call "%~dp0.cargo-vc.bat" build
 )
 if errorlevel 1 exit /b 1
+popd
 
 if not exist "%~dp0bin\" mkdir "%~dp0bin"
 copy /y "%~dp0target\%PROFILE%\mdview.exe" "%~dp0bin\mdview.exe" >NUL || exit /b 1
 if not exist "%~dp0bin\config.toml" call :write_config
-if not exist "%~dp0bin\md-styles\" mkdir "%~dp0bin\md-styles"
+if not exist "%~dp0bin\md-styles\" mkdir "%~dp0bin\md-styles" || exit /b 1
 echo Built %~dp0bin\mdview.exe [%PROFILE%]
 exit /b 0
 
