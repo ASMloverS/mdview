@@ -44,8 +44,8 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 - Docs under `docs/superpowers/` (specs and plans): written in Chinese.
 - Commit only when asked or when executing an approved plan; feature work
   happens on short-lived branches merged back to master.
-- Commit message format (MANDATORY): `<gitmoji> <scope>(<type>): <message>`
-  — e.g. `✨ reader(feat): add ctrl+f/b paging`. Emojis per gitmoji.dev.
+- Commit message format (MANDATORY): `<gitmoji> <type>(<scope>): <message>`
+  — e.g. `✨ feat(reader): add ctrl+f/b paging`. Emojis per gitmoji.dev.
 
 ## This File
 
