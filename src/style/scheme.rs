@@ -38,16 +38,14 @@ const BUILTINS: &[(&str, &str)] = &[
 
 pub const DEFAULT_THEME: &str = "gruvbox-dark";
 
-/// User CSS theme directories in priority order: `./md-styles` first,
-/// then `md-styles` next to the executable.
+/// User CSS theme directory: `md-styles` next to the executable
+/// (cwd-relative fallback when the exe location is unavailable).
 fn style_dirs() -> Vec<PathBuf> {
-    let mut dirs = vec![PathBuf::from("md-styles")];
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            dirs.push(dir.join("md-styles"));
-        }
-    }
-    dirs
+    let dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_default();
+    vec![dir.join("md-styles")]
 }
 
 /// Load `<name>.css` from the first directory that contains it.
@@ -95,10 +93,9 @@ impl Scheme {
         BUILTINS.iter().map(|(n, _)| *n).collect()
     }
 
-    /// Resolve a scheme by name: user `md-styles/<name>.css` first (current
-    /// directory, then next to the executable), then builtins. A user file
-    /// with the same name as a builtin overrides the builtin. Unknown names
-    /// fall back to default.
+    /// Resolve a scheme by name: user `md-styles/<name>.css` next to the
+    /// executable first, then builtins. A user file with the same name as
+    /// a builtin overrides the builtin. Unknown names fall back to default.
     pub fn load(name: &str) -> Scheme {
         if let Some(s) = load_from_dirs(&style_dirs(), name) {
             return s;
@@ -118,8 +115,8 @@ impl Scheme {
         }
     }
 
-    /// All loadable scheme names: builtins plus user CSS files in the
-    /// md-styles/ directories (current directory and next to the executable).
+    /// All loadable scheme names: builtins plus user CSS files in
+    /// `md-styles/` next to the executable.
     pub fn available() -> Vec<String> {
         let mut names = available_in(&style_dirs());
         names.sort();
@@ -274,6 +271,12 @@ mod tests {
         assert_eq!(names.iter().filter(|n| *n == "nord").count(), 1);
 
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn style_dirs_only_next_to_executable() {
+        let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+        assert_eq!(style_dirs(), vec![exe_dir.join("md-styles")]);
     }
 
     #[test]
