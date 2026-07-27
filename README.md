@@ -36,11 +36,11 @@ Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/botto
 
 Builtins: `tokyo-night`, `dracula`, `gruvbox-dark` (default), `gruvbox-light`, `nord`, `solarized-dark`, `solarized-light`, `github-light`.
 
-Custom: write `md-styles/<name>.css` (lookup: `./md-styles/` → exe-adjacent `md-styles/` → builtins; same name overrides a builtin). Supported CSS subset: element/descendant selectors; `color`, `background(-color)`, `border-color`, `font-weight`, `font-style`, `text-decoration`; `syntax-keyword|string|comment|function|type|number|operator` classes for highlighting. See `assets/styles/` for examples.
+Custom: write `md-styles/<name>.css` next to the executable (lookup: exe-adjacent `md-styles/` → builtins; same name overrides a builtin). Supported CSS subset: element/descendant selectors; `color`, `background(-color)`, `border-color`, `font-weight`, `font-style`, `text-decoration`; `syntax-keyword|string|comment|function|type|number|operator` classes for highlighting. See `assets/styles/` for examples.
 
 ## Config
 
-`config.toml` (working directory, all optional):
+`config.toml` (next to the executable, all optional):
 
 ```toml
 theme = "gruvbox-dark"  # written automatically when the picker closes
