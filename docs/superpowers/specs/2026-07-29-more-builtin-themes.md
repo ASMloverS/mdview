@@ -1,7 +1,7 @@
 # 新增 12 个内置主题设计规格
 
 日期：2026-07-29
-状态：待确认
+状态：已实现
 对应计划：`docs/superpowers/plans/2026-07-29-more-builtin-themes.md`
 
 ## 背景
