@@ -1,6 +1,6 @@
 //! TUI application: state machine and event loop.
 
-use crate::config::Config;
+use crate::config::{Config, ContentAlign};
 use crate::markdown::parse_document;
 use crate::render::layout::render_document;
 use crate::render::Rendered;
@@ -46,13 +46,14 @@ pub struct App {
     pub scheme: Scheme,
     pub level: ColorLevel,
     pub max_width: usize,
+    pub align: ContentAlign,
     pub show_help: bool,
     pub status: Option<String>,
     pub quit: bool,
 }
 
 impl App {
-    pub fn new(scheme: Scheme, level: ColorLevel, max_width: usize) -> App {
+    pub fn new(scheme: Scheme, level: ColorLevel, max_width: usize, align: ContentAlign) -> App {
         App {
             mode: Mode::Browser,
             files: scan_files(Path::new(".")),
@@ -67,6 +68,7 @@ impl App {
             scheme,
             level,
             max_width,
+            align,
             show_help: false,
             status: None,
             quit: false,
@@ -199,6 +201,7 @@ pub fn run(
     level: ColorLevel,
     max_width: usize,
     mouse: bool,
+    align: ContentAlign,
 ) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -210,7 +213,7 @@ pub fn run(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = event_loop(&mut terminal, start_file, scheme, level, max_width);
+    let result = event_loop(&mut terminal, start_file, scheme, level, max_width, align);
 
     disable_raw_mode()?;
     if mouse {
@@ -232,12 +235,13 @@ fn event_loop(
     scheme: Scheme,
     level: ColorLevel,
     max_width: usize,
+    align: ContentAlign,
 ) -> Result<()> {
-    let mut app = App::new(scheme, level, max_width);
+    let mut app = App::new(scheme, level, max_width, align);
     if let Some(path) = start_file {
         let term_w = terminal.size()?.width;
         let width = content_width(term_w, max_width);
-        let offset = term_w.saturating_sub(2).saturating_sub(width) / 2;
+        let offset = content_offset(term_w.saturating_sub(2), width, app.align);
         app.open_reader(path, width, offset);
     }
 
@@ -263,6 +267,15 @@ fn event_loop(
 pub fn content_width(term_width: u16, max_width: usize) -> u16 {
     let w = term_width.saturating_sub(2) as usize;
     w.min(max_width).max(20) as u16
+}
+
+/// 内容水平偏移：Center 居中，Left 贴左（0）。
+/// inner 为去掉边框后的可用宽度。
+pub fn content_offset(inner_width: u16, width: u16, align: ContentAlign) -> u16 {
+    match align {
+        ContentAlign::Center => inner_width.saturating_sub(width) / 2,
+        ContentAlign::Left => 0,
+    }
 }
 
 /// 滚动跟随：调整 scroll 让光标落在可视区内。
@@ -465,7 +478,7 @@ mod tests {
 
     fn test_app(lines: usize, view_height: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100);
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center);
         app.mode = Mode::Reader;
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),
@@ -484,6 +497,13 @@ mod tests {
 
     fn ctrl(key: char) -> KeyEvent {
         KeyEvent::new(KeyCode::Char(key), KeyModifiers::CONTROL)
+    }
+
+    #[test]
+    fn content_offset_centers_and_left_aligns() {
+        assert_eq!(content_offset(100, 80, ContentAlign::Center), 10);
+        assert_eq!(content_offset(100, 80, ContentAlign::Left), 0);
+        assert_eq!(content_offset(50, 80, ContentAlign::Center), 0, "窄终端不溢出");
     }
 
     #[test]

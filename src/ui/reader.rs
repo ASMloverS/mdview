@@ -1,7 +1,7 @@
 //! Full-screen reader view with scroll and search.
 
 use super::{accent_style, chrome_style, convert, cursor_style, dim_style};
-use crate::app::{content_width, App};
+use crate::app::{content_offset, content_width, App};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -14,7 +14,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let view = chunks[0];
 
     let want_width = content_width(view.width, app.max_width);
-    let want_offset = view.width.saturating_sub(2).saturating_sub(want_width) / 2;
+    let want_offset = content_offset(view.width.saturating_sub(2), want_width, app.align);
     let Some(reader) = app.reader.as_mut() else { return };
     reader.view_height = view.height.saturating_sub(2) as usize;
     if reader.width != want_width || reader.offset != want_offset {
@@ -92,6 +92,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 mod tests {
     use super::*;
     use crate::app::{Mode, Reader};
+    use crate::config::ContentAlign;
     use crate::render::{Rendered, SSpan};
     use crate::style::{ColorLevel, Computed, Rgb, Scheme};
     use ratatui::backend::TestBackend;
@@ -101,7 +102,7 @@ mod tests {
 
     fn test_app(lines: usize, cursor: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100);
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center);
         app.mode = Mode::Reader;
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),

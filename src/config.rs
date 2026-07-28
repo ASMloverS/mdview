@@ -16,6 +16,8 @@ impl ContentAlign {
         <ContentAlign as clap::ValueEnum>::from_str(s, true).ok()
     }
 
+    // TODO(content-align): remove allow once wired up in later tasks.
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentAlign::Center => "center",
@@ -23,6 +25,8 @@ impl ContentAlign {
         }
     }
 
+    // TODO(content-align): remove allow once wired up in later tasks.
+    #[allow(dead_code)]
     pub fn toggle(&self) -> ContentAlign {
         match self {
             ContentAlign::Center => ContentAlign::Left,
@@ -40,8 +44,6 @@ pub struct Config {
     /// Enable mouse capture in the TUI.
     pub mouse: Option<bool>,
     /// Content alignment: "center" (default) or "left".
-    // TODO(content-align): remove allow once wired up in later tasks.
-    #[allow(dead_code)]
     pub align: Option<String>,
 }
 
