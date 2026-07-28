@@ -42,6 +42,10 @@ const BUILTINS: &[(&str, &str)] = &[
     ("github-light", include_str!("../../assets/styles/github-light.css")),
     ("solarized-light", include_str!("../../assets/styles/solarized-light.css")),
     ("gruvbox-light", include_str!("../../assets/styles/gruvbox-light.css")),
+    ("catppuccin-latte", include_str!("../../assets/styles/catppuccin-latte.css")),
+    ("rose-pine-dawn", include_str!("../../assets/styles/rose-pine-dawn.css")),
+    ("everforest-light", include_str!("../../assets/styles/everforest-light.css")),
+    ("ayu-light", include_str!("../../assets/styles/ayu-light.css")),
 ];
 
 pub const DEFAULT_THEME: &str = "gruvbox-dark";
