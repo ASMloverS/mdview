@@ -30,7 +30,7 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 - `src/style/` — CSS subset parser (`css.rs`), scheme registry (`scheme.rs`),
   colors (`color.rs`)
 - `src/app.rs`, `src/ui/` — TUI state machine and views
-- `assets/styles/` — 8 builtin themes (embedded via `include_str!`)
+- `assets/styles/` — 20 builtin themes (embedded via `include_str!`)
 - `docs/superpowers/{specs,plans}/` — design specs and implementation plans
 
 ## Conventions

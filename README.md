@@ -9,7 +9,7 @@ Terminal Markdown renderer: [glow](https://github.com/charmbracelet/glow)-style 
 - TUI file browser + reader (scroll, search, live theme switcher)
 - VS Code-style decorations: h1/h2 rules, code gutter + lang tag, blockquote background, table header separator, centered content
 - Syntax highlighting driven by the active theme
-- 8 builtin themes + custom CSS themes; picker selection persists
+- 20 builtin themes + custom CSS themes; picker selection persists
 - Pipe mode: markdown in, ANSI out
 
 ## Build
@@ -34,7 +34,7 @@ Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/botto
 
 ## Themes
 
-Builtins: `tokyo-night`, `dracula`, `gruvbox-dark` (default), `gruvbox-light`, `nord`, `solarized-dark`, `solarized-light`, `github-light`.
+Builtins: `tokyo-night`, `dracula`, `gruvbox-dark` (default), `gruvbox-light`, `nord`, `solarized-dark`, `solarized-light`, `github-light`, `github-dark`, `catppuccin-mocha`, `catppuccin-latte`, `kanagawa`, `rose-pine`, `rose-pine-dawn`, `everforest`, `everforest-light`, `one-dark`, `monokai`, `ayu-dark`, `ayu-light`.
 
 Custom: write `md-styles/<name>.css` next to the executable (lookup: exe-adjacent `md-styles/` → builtins; same name overrides a builtin). Supported CSS subset: element/descendant selectors; `color`, `background(-color)`, `border-color`, `font-weight`, `font-style`, `text-decoration`; `syntax-keyword|string|comment|function|type|number|operator` classes for highlighting. See `assets/styles/` for examples.
 
