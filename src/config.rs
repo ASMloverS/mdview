@@ -13,11 +13,7 @@ pub enum ContentAlign {
 impl ContentAlign {
     /// 容错解析配置字符串；非法值返回 None（回退默认）。
     pub fn from_str(s: &str) -> Option<ContentAlign> {
-        match s {
-            "center" => Some(ContentAlign::Center),
-            "left" => Some(ContentAlign::Left),
-            _ => None,
-        }
+        <ContentAlign as clap::ValueEnum>::from_str(s, true).ok()
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -89,7 +85,7 @@ impl Config {
 /// was already current or the existing file could not be parsed (in which
 /// case it is left untouched).
 fn save_key_to(path: &Path, key: &str, value: &str) -> std::io::Result<bool> {
-    let mut value_: toml::Value = match std::fs::read_to_string(path) {
+    let mut doc: toml::Value = match std::fs::read_to_string(path) {
         Ok(text) => match text.parse() {
             Ok(v) => v,
             Err(_) => return Ok(false),
@@ -99,14 +95,14 @@ fn save_key_to(path: &Path, key: &str, value: &str) -> std::io::Result<bool> {
         }
         Err(e) => return Err(e),
     };
-    let Some(table) = value_.as_table_mut() else {
+    let Some(table) = doc.as_table_mut() else {
         return Ok(false);
     };
     if table.get(key).and_then(|v| v.as_str()) == Some(value) {
         return Ok(false);
     }
     table.insert(key.to_string(), toml::Value::String(value.to_string()));
-    let text = toml::to_string(&value_)
+    let text = toml::to_string(&doc)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     std::fs::write(path, text)?;
     Ok(true)
