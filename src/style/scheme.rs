@@ -31,6 +31,10 @@ const BUILTINS: &[(&str, &str)] = &[
     ("gruvbox-dark", include_str!("../../assets/styles/gruvbox-dark.css")),
     ("nord", include_str!("../../assets/styles/nord.css")),
     ("solarized-dark", include_str!("../../assets/styles/solarized-dark.css")),
+    ("catppuccin-mocha", include_str!("../../assets/styles/catppuccin-mocha.css")),
+    ("kanagawa", include_str!("../../assets/styles/kanagawa.css")),
+    ("rose-pine", include_str!("../../assets/styles/rose-pine.css")),
+    ("everforest", include_str!("../../assets/styles/everforest.css")),
     ("github-light", include_str!("../../assets/styles/github-light.css")),
     ("solarized-light", include_str!("../../assets/styles/solarized-light.css")),
     ("gruvbox-light", include_str!("../../assets/styles/gruvbox-light.css")),
@@ -283,6 +287,61 @@ mod tests {
     fn default_theme_is_gruvbox_dark() {
         assert_eq!(DEFAULT_THEME, "gruvbox-dark");
         assert!(!Scheme::load(DEFAULT_THEME).rules.is_empty());
+    }
+
+    #[test]
+    fn new_builtin_schemes_registered() {
+        let names = Scheme::builtin_names();
+        for expected in [
+            "catppuccin-mocha",
+            "kanagawa",
+            "rose-pine",
+            "everforest",
+            "one-dark",
+            "monokai",
+            "ayu-dark",
+            "github-dark",
+            "catppuccin-latte",
+            "rose-pine-dawn",
+            "everforest-light",
+            "ayu-light",
+        ] {
+            assert!(names.contains(&expected), "missing builtin {expected}");
+        }
+    }
+
+    #[test]
+    fn builtin_schemes_cover_template_elements() {
+        const TAGS: &[&str] = &[
+            "body", "h1", "h2", "h3", "h4", "h5", "h6", "p", "strong", "em", "del",
+            "code", "pre", "a", "blockquote", "li", "table", "th", "td", "hr", "img",
+            "math", "footnote", "cursor",
+        ];
+        const SYNTAX: &[&str] = &[
+            "keyword", "string", "comment", "function", "type", "number", "operator",
+        ];
+        for name in Scheme::builtin_names() {
+            let s = Scheme::load(name);
+            for tag in TAGS {
+                let c = s.element(tag);
+                assert!(
+                    c.fg.is_some()
+                        || c.bg.is_some()
+                        || c.border.is_some()
+                        || c.bold
+                        || c.italic
+                        || c.underline
+                        || c.strike,
+                    "builtin {name} missing style for {tag}"
+                );
+            }
+            for class in SYNTAX {
+                assert!(
+                    s.syntax_color(class).is_some(),
+                    "builtin {name} missing syntax-{class}"
+                );
+            }
+        }
     }
 
     #[test]
