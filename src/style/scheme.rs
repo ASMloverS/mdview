@@ -331,16 +331,11 @@ mod tests {
         for name in Scheme::builtin_names() {
             let s = Scheme::load(name);
             for tag in TAGS {
-                let c = s.element(tag);
                 assert!(
-                    c.fg.is_some()
-                        || c.bg.is_some()
-                        || c.border.is_some()
-                        || c.bold
-                        || c.italic
-                        || c.underline
-                        || c.strike,
-                    "builtin {name} missing style for {tag}"
+                    s.rules
+                        .iter()
+                        .any(|r| r.selectors.iter().any(|sel| sel.last().is_some_and(|t| t.as_str() == *tag))),
+                    "builtin {name} missing rule for {tag}"
                 );
             }
             for class in SYNTAX {
