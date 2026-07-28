@@ -3,6 +3,38 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+/// 内容水平对齐方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ContentAlign {
+    Center,
+    Left,
+}
+
+impl ContentAlign {
+    /// 容错解析配置字符串；非法值返回 None（回退默认）。
+    pub fn from_str(s: &str) -> Option<ContentAlign> {
+        match s {
+            "center" => Some(ContentAlign::Center),
+            "left" => Some(ContentAlign::Left),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ContentAlign::Center => "center",
+            ContentAlign::Left => "left",
+        }
+    }
+
+    pub fn toggle(&self) -> ContentAlign {
+        match self {
+            ContentAlign::Center => ContentAlign::Left,
+            ContentAlign::Left => ContentAlign::Center,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     /// Theme name: builtin or `md-styles/<name>.css`.
@@ -11,6 +43,10 @@ pub struct Config {
     pub max_width: Option<usize>,
     /// Enable mouse capture in the TUI.
     pub mouse: Option<bool>,
+    /// Content alignment: "center" (default) or "left".
+    // TODO(content-align): remove allow once wired up in later tasks.
+    #[allow(dead_code)]
+    pub align: Option<String>,
 }
 
 /// Path of `config.toml` next to the executable; falls back to the
@@ -36,16 +72,24 @@ impl Config {
     /// executable, preserving all other keys. Best-effort: IO errors are
     /// ignored and a malformed existing file is never overwritten.
     pub fn save_theme(name: &str) {
-        let _ = save_theme_to(&config_path(), name);
+        let _ = save_key_to(&config_path(), "theme", name);
+    }
+
+    /// Persist the content alignment into `config.toml`, preserving all
+    /// other keys. Same best-effort semantics as `save_theme`.
+    // TODO(content-align): remove allow once wired up in later tasks.
+    #[allow(dead_code)]
+    pub fn save_align(value: &str) {
+        let _ = save_key_to(&config_path(), "align", value);
     }
 }
 
-/// Update the `theme` key in the TOML file at `path`, creating the file
-/// if missing. Returns Ok(true) when the file was written; Ok(false)
-/// when the theme was already current or the existing file could not
-/// be parsed (in which case it is left untouched).
-fn save_theme_to(path: &Path, name: &str) -> std::io::Result<bool> {
-    let mut value: toml::Value = match std::fs::read_to_string(path) {
+/// Update `key` in the TOML file at `path`, creating the file if missing.
+/// Returns Ok(true) when the file was written; Ok(false) when the value
+/// was already current or the existing file could not be parsed (in which
+/// case it is left untouched).
+fn save_key_to(path: &Path, key: &str, value: &str) -> std::io::Result<bool> {
+    let mut value_: toml::Value = match std::fs::read_to_string(path) {
         Ok(text) => match text.parse() {
             Ok(v) => v,
             Err(_) => return Ok(false),
@@ -55,14 +99,14 @@ fn save_theme_to(path: &Path, name: &str) -> std::io::Result<bool> {
         }
         Err(e) => return Err(e),
     };
-    let Some(table) = value.as_table_mut() else {
+    let Some(table) = value_.as_table_mut() else {
         return Ok(false);
     };
-    if table.get("theme").and_then(|v| v.as_str()) == Some(name) {
+    if table.get(key).and_then(|v| v.as_str()) == Some(value) {
         return Ok(false);
     }
-    table.insert("theme".to_string(), toml::Value::String(name.to_string()));
-    let text = toml::to_string(&value)
+    table.insert(key.to_string(), toml::Value::String(value.to_string()));
+    let text = toml::to_string(&value_)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     std::fs::write(path, text)?;
     Ok(true)
@@ -85,7 +129,7 @@ mod tests {
     #[test]
     fn writes_new_file() {
         let p = temp_path("new");
-        assert!(save_theme_to(&p, "nord").unwrap());
+        assert!(save_key_to(&p, "theme", "nord").unwrap());
         let v: toml::Value = std::fs::read_to_string(&p).unwrap().parse().unwrap();
         assert_eq!(v.get("theme").and_then(|t| t.as_str()), Some("nord"));
         cleanup(&p);
@@ -95,7 +139,7 @@ mod tests {
     fn updates_theme_and_preserves_other_keys() {
         let p = temp_path("keep");
         std::fs::write(&p, "theme = \"nord\"\nmax_width = 80\nmouse = false\ncustom = \"x\"\n").unwrap();
-        assert!(save_theme_to(&p, "dracula").unwrap());
+        assert!(save_key_to(&p, "theme", "dracula").unwrap());
         let v: toml::Value = std::fs::read_to_string(&p).unwrap().parse().unwrap();
         assert_eq!(v.get("theme").and_then(|t| t.as_str()), Some("dracula"));
         assert_eq!(v.get("max_width").and_then(|t| t.as_integer()), Some(80));
@@ -109,7 +153,7 @@ mod tests {
         let p = temp_path("same");
         let original = "theme = \"nord\"\nmax_width = 80\n";
         std::fs::write(&p, original).unwrap();
-        assert!(!save_theme_to(&p, "nord").unwrap());
+        assert!(!save_key_to(&p, "theme", "nord").unwrap());
         assert_eq!(std::fs::read_to_string(&p).unwrap(), original);
         cleanup(&p);
     }
@@ -127,8 +171,30 @@ mod tests {
         let p = temp_path("bad");
         let original = "theme = [not valid toml";
         std::fs::write(&p, original).unwrap();
-        assert!(!save_theme_to(&p, "nord").unwrap());
+        assert!(!save_key_to(&p, "theme", "nord").unwrap());
         assert_eq!(std::fs::read_to_string(&p).unwrap(), original);
+        cleanup(&p);
+    }
+
+    #[test]
+    fn content_align_parse_toggle_and_as_str() {
+        assert_eq!(ContentAlign::from_str("center"), Some(ContentAlign::Center));
+        assert_eq!(ContentAlign::from_str("left"), Some(ContentAlign::Left));
+        assert_eq!(ContentAlign::from_str("bogus"), None);
+        assert_eq!(ContentAlign::Center.toggle(), ContentAlign::Left);
+        assert_eq!(ContentAlign::Left.toggle(), ContentAlign::Center);
+        assert_eq!(ContentAlign::Center.as_str(), "center");
+        assert_eq!(ContentAlign::Left.as_str(), "left");
+    }
+
+    #[test]
+    fn saves_align_preserving_other_keys() {
+        let p = temp_path("align");
+        std::fs::write(&p, "theme = \"nord\"\n").unwrap();
+        assert!(save_key_to(&p, "align", "left").unwrap());
+        let v: toml::Value = std::fs::read_to_string(&p).unwrap().parse().unwrap();
+        assert_eq!(v.get("align").and_then(|t| t.as_str()), Some("left"));
+        assert_eq!(v.get("theme").and_then(|t| t.as_str()), Some("nord"));
         cleanup(&p);
     }
 }
