@@ -121,6 +121,7 @@ fn draw_help(frame: &mut Frame, app: &App) {
         ("g/G", "top / bottom"),
         ("/, n/N", "search / next match"),
         ("t", "theme picker"),
+        ("a", "toggle align (reader)"),
         ("r", "rescan files (browser)"),
         ("q", "quit"),
         ("?", "toggle this help"),

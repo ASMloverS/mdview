@@ -16,8 +16,6 @@ impl ContentAlign {
         <ContentAlign as clap::ValueEnum>::from_str(s, true).ok()
     }
 
-    // TODO(content-align): remove allow once wired up in later tasks.
-    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentAlign::Center => "center",
@@ -25,8 +23,6 @@ impl ContentAlign {
         }
     }
 
-    // TODO(content-align): remove allow once wired up in later tasks.
-    #[allow(dead_code)]
     pub fn toggle(&self) -> ContentAlign {
         match self {
             ContentAlign::Center => ContentAlign::Left,
@@ -75,8 +71,6 @@ impl Config {
 
     /// Persist the content alignment into `config.toml`, preserving all
     /// other keys. Same best-effort semantics as `save_theme`.
-    // TODO(content-align): remove allow once wired up in later tasks.
-    #[allow(dead_code)]
     pub fn save_align(value: &str) {
         let _ = save_key_to(&config_path(), "align", value);
     }

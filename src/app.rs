@@ -121,6 +121,12 @@ impl App {
         self.status = Some(format!("theme: {}", self.scheme.name));
     }
 
+    /// 切换居中/左对齐并提示；重排版由 draw 的 offset 比较自动触发。
+    pub fn toggle_align(&mut self) {
+        self.align = self.align.toggle();
+        self.status = Some(format!("align: {}", self.align.as_str()));
+    }
+
     pub fn update_search(&mut self) {
         self.search_matches.clear();
         if self.search_query.is_empty() {
@@ -433,6 +439,10 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Char('n') => app.jump_match(true),
         KeyCode::Char('N') => app.jump_match(false),
+        KeyCode::Char('a') => {
+            app.toggle_align();
+            Config::save_align(app.align.as_str());
+        }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit = true,
         KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             move_cursor(app, full)
@@ -628,5 +638,17 @@ mod tests {
         let last = r.rendered.lines.len() - 1;
         assert!(r.cursor <= last);
         assert!(r.scroll <= last);
+    }
+
+    #[test]
+    fn toggle_align_flips_and_sets_status() {
+        let mut app = test_app(10, 24);
+        assert_eq!(app.align, ContentAlign::Center);
+        app.toggle_align();
+        assert_eq!(app.align, ContentAlign::Left);
+        assert_eq!(app.status.as_deref(), Some("align: left"));
+        app.toggle_align();
+        assert_eq!(app.align, ContentAlign::Center);
+        assert_eq!(app.status.as_deref(), Some("align: center"));
     }
 }
