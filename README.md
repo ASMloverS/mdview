@@ -28,9 +28,9 @@ mdview README.md     # open a file
 cat a.md | mdview    # pipe mode
 ```
 
-Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--list-themes`
+Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--align <center|left>` · `--list-themes`
 
-Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `Enter` open · `Esc` back · `?` help · `q` quit
+Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align (reader) · `Enter` open · `Esc` back · `?` help · `q` quit
 
 ## Themes
 
@@ -46,6 +46,7 @@ Custom: write `md-styles/<name>.css` next to the executable (lookup: exe-adjacen
 theme = "gruvbox-dark"  # written automatically when the picker closes
 max_width = 100
 mouse = true
+align = "center"        # or "left"; written automatically on 'a' toggle
 ```
 
-Priority: `-t` flag > `config.toml` > builtin default (`-t` is one-shot, never persisted).
+Priority: CLI flags > config.toml > builtin defaults (flags are one-shot, never persisted).

@@ -36,7 +36,7 @@ mdview --list-themes  # 列出所有可用主题
 cat a.md | mdview     # 管道模式，渲染到 stdout
 ```
 
-选项：`-t, --theme <名称>`、`-w, --max-width <列数>`（默认 100）、`--list-themes`。
+选项：`-t, --theme <名称>`、`-w, --max-width <列数>`（默认 100）、`--align <center|left>`、`--list-themes`。
 
 ### 按键
 
@@ -48,6 +48,7 @@ cat a.md | mdview     # 管道模式，渲染到 stdout
 | `g/G` | 顶部 / 底部 |
 | `/` `n/N` | 搜索 / 下一个、上一个匹配 |
 | `t` | 主题选择器（j/k 预览，关闭时保存选择） |
+| `a` | 切换内容居中/左对齐（阅读器，自动保存） |
 | `Enter/l` | 打开文件（浏览器） |
 | `Esc` | 返回浏览器 |
 | `r` | 重新扫描文件（浏览器） |
@@ -70,6 +71,7 @@ CSS 子集支持：元素与后代选择器（`pre code`）；属性 `color`、`
 theme = "gruvbox-dark"  # 主题选择器关闭时自动写入
 max_width = 100
 mouse = true
+align = "center"        # 或 "left"；阅读器内按 a 切换时自动写入
 ```
 
-优先级：`-t` 参数 > `config.toml` > 内置默认（`-t` 为一次性覆盖，不落盘）。
+优先级：CLI 参数 > config.toml > 内置默认（CLI 参数为一次性覆盖，不落盘）。

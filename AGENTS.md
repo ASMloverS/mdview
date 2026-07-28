@@ -40,8 +40,8 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
   builtin). CSS subset: element/descendant selectors,
   color/background/border/font properties only.
 - Default theme: `gruvbox-dark`. Config: `config.toml` next to the
-  executable (theme persisted on picker close; preserve other keys when
-  writing).
+  executable (theme persisted on picker close, `align` persisted on
+  reader `a` toggle; preserve other keys when writing).
 - Tests: in-file `#[cfg(test)] mod tests`. Render tests assert on plain-text
   output (`render_document(...).plain`) and on span styles.
 - Code comments: Chinese, concise — match the existing style.
