@@ -53,6 +53,9 @@ set "CFG=%~dp0bin\config.toml"
 >> "%CFG%" echo # Content alignment: center (default) or left; toggle in reader with 'a'
 >> "%CFG%" echo # align = "center"
 >> "%CFG%" echo.
+>> "%CFG%" echo # Reading position history: remember cursor line per file (0 disables)
+>> "%CFG%" echo # history_size = 200
+>> "%CFG%" echo.
 >> "%CFG%" echo # Enable mouse capture in the TUI
 >> "%CFG%" echo # mouse = true
 goto :eof

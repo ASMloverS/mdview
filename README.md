@@ -47,6 +47,7 @@ theme = "gruvbox-dark"  # written automatically when the picker closes
 max_width = 100
 mouse = true
 align = "center"        # or "left"; written automatically on 'a' toggle
+history_size = 200      # remember cursor line per file (history.toml; 0 disables)
 ```
 
 Priority: CLI flags > config.toml > builtin defaults (flags are one-shot, never persisted).

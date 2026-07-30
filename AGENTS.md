@@ -29,6 +29,7 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 - `src/render/ansi.rs` — one-shot ANSI output
 - `src/style/` — CSS subset parser (`css.rs`), scheme registry (`scheme.rs`),
   colors (`color.rs`)
+- `src/history.rs` — per-file cursor position history (LRU, exe-adjacent `history.toml`)
 - `src/app.rs`, `src/ui/` — TUI state machine and views
 - `assets/styles/` — 20 builtin themes (embedded via `include_str!`)
 - `docs/superpowers/{specs,plans}/` — design specs and implementation plans
@@ -41,7 +42,9 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
   color/background/border/font properties only.
 - Default theme: `gruvbox-dark`. Config: `config.toml` next to the
   executable (theme persisted on picker close, `align` persisted on
-  reader `a` toggle; preserve other keys when writing).
+  reader `a` toggle; preserve other keys when writing). Reading
+  positions: `history.toml` next to the executable (LRU capped by
+  `history_size`, 0 disables).
 - Tests: in-file `#[cfg(test)] mod tests`. Render tests assert on plain-text
   output (`render_document(...).plain`) and on span styles.
 - Code comments: Chinese, concise — match the existing style.
