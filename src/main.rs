@@ -3,6 +3,7 @@
 mod app;
 mod config;
 mod highlight;
+mod history;
 mod markdown;
 mod math;
 mod render;
