@@ -727,6 +727,7 @@ mod tests {
         let (dir, file) = temp_doc("fresh", 10);
         let mut app = test_app(10, 24);
         app.history_size = 200;
+        app.history = History::load_from(&dir.join("history.toml"));
         app.open_reader(file, 80, 0);
         let r = app.reader.as_ref().unwrap();
         assert_eq!(r.cursor, 0);
