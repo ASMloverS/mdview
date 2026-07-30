@@ -94,7 +94,7 @@ impl App {
 
     pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {
         let rendered = self.render_file(&path, width, offset);
-        self.reader = Some(Reader {
+        let mut reader = Reader {
             path,
             rendered,
             width,
@@ -102,7 +102,16 @@ impl App {
             scroll: 0,
             cursor: 0,
             view_height: 24,
-        });
+        };
+        // 恢复上次关闭时的光标行（history_size = 0 禁用）。
+        if self.history_size > 0 {
+            if let Some(line) = self.history.get(&reader.path) {
+                let last = reader.rendered.lines.len().saturating_sub(1);
+                reader.cursor = line.min(last);
+                reader.scroll = reader.cursor.saturating_sub(reader.view_height / 2);
+            }
+        }
+        self.reader = Some(reader);
         self.search_matches.clear();
         self.mode = Mode::Reader;
     }
@@ -306,6 +315,17 @@ fn follow_cursor(reader: &mut Reader) {
     }
 }
 
+/// 关闭阅读器时记录当前光标行（best-effort；history_size = 0 禁用）。
+fn save_position(app: &mut App) {
+    if app.history_size == 0 {
+        return;
+    }
+    let Some((path, line)) = app.reader.as_ref().map(|r| (r.path.clone(), r.cursor)) else {
+        return;
+    };
+    app.history.record(&path, line, app.history_size);
+}
+
 /// 键盘移动：光标移动 delta 行（clamp 到文档范围），滚动跟随。
 fn move_cursor(app: &mut App, delta: isize) {
     let Some(reader) = app.reader.as_mut() else { return };
@@ -438,8 +458,14 @@ fn reader_key(app: &mut App, key: KeyEvent) {
         .map(|r| page_delta(r.view_height))
         .unwrap_or(10) as isize;
     match key.code {
-        KeyCode::Char('q') => app.quit = true,
-        KeyCode::Esc => app.mode = Mode::Browser,
+        KeyCode::Char('q') => {
+            save_position(app);
+            app.quit = true;
+        }
+        KeyCode::Esc => {
+            save_position(app);
+            app.mode = Mode::Browser;
+        }
         KeyCode::Char('j') | KeyCode::Down => move_cursor(app, 1),
         KeyCode::Char('k') | KeyCode::Up => move_cursor(app, -1),
         KeyCode::Char('d') | KeyCode::PageDown => move_cursor(app, page),
@@ -456,7 +482,10 @@ fn reader_key(app: &mut App, key: KeyEvent) {
             app.toggle_align();
             Config::save_align(app.align.as_str());
         }
-        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit = true,
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            save_position(app);
+            app.quit = true;
+        }
         KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             move_cursor(app, full)
         }
@@ -663,5 +692,89 @@ mod tests {
         app.toggle_align();
         assert_eq!(app.align, ContentAlign::Center);
         assert_eq!(app.status.as_deref(), Some("align: center"));
+    }
+
+    /// 造一个临时 md 文件（lines 个单段段落），返回 (目录, 文件路径)。
+    fn temp_doc(tag: &str, lines: usize) -> (PathBuf, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("mdview-app-hist-{}-{}", std::process::id(), tag));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("note.md");
+        let text = (0..lines)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        std::fs::write(&file, text).unwrap();
+        (dir, file)
+    }
+
+    #[test]
+    fn open_reader_restores_cursor_from_history() {
+        let (dir, file) = temp_doc("restore", 40);
+        let mut app = test_app(10, 24);
+        app.history_size = 200;
+        let mut h = History::load_from(&dir.join("history.toml"));
+        h.record(&file, 30, 200);
+        app.history = h;
+        app.open_reader(file, 80, 0);
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 30);
+        assert_eq!(r.scroll, 30 - 24 / 2, "光标大致居中（view_height 占位 24）");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn open_reader_without_record_starts_at_top() {
+        let (dir, file) = temp_doc("fresh", 10);
+        let mut app = test_app(10, 24);
+        app.history_size = 200;
+        app.open_reader(file, 80, 0);
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 0);
+        assert_eq!(r.scroll, 0);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn open_reader_clamps_recorded_line() {
+        let (dir, file) = temp_doc("clamp", 3);
+        let mut app = test_app(10, 24);
+        app.history_size = 200;
+        let mut h = History::load_from(&dir.join("history.toml"));
+        h.record(&file, 999, 200);
+        app.history = h;
+        app.open_reader(file, 80, 0);
+        let r = app.reader.as_ref().unwrap();
+        let last = r.rendered.lines.len() - 1;
+        assert_eq!(r.cursor, last);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn esc_saves_cursor_position() {
+        let (dir, file) = temp_doc("save", 40);
+        let hist_path = dir.join("history.toml");
+        let mut app = test_app(10, 24);
+        app.history_size = 200;
+        app.history = History::load_from(&hist_path);
+        app.open_reader(file.clone(), 80, 0);
+        app.reader.as_mut().unwrap().cursor = 7;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        let h = History::load_from(&hist_path);
+        assert_eq!(h.get(&file), Some(7));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn history_size_zero_disables_save_and_restore() {
+        let (dir, file) = temp_doc("disabled", 40);
+        let hist_path = dir.join("history.toml");
+        let mut app = test_app(10, 24); // test_app 中 history_size = 0
+        app.history = History::load_from(&hist_path);
+        app.open_reader(file.clone(), 80, 0);
+        app.reader.as_mut().unwrap().cursor = 7;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        let h = History::load_from(&hist_path);
+        assert_eq!(h.get(&file), None);
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
