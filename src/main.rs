@@ -77,7 +77,8 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    app::run(cli.file, scheme, level, max_width, cfg.mouse.unwrap_or(true), align)
+    let history_size = cfg.history_size.unwrap_or(history::DEFAULT_HISTORY_SIZE);
+    app::run(cli.file, scheme, level, max_width, cfg.mouse.unwrap_or(true), align, history_size)
 }
 
 fn terminal_width() -> usize {

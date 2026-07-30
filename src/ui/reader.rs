@@ -102,7 +102,7 @@ mod tests {
 
     fn test_app(lines: usize, cursor: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center);
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0);
         app.mode = Mode::Reader;
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),

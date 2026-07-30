@@ -41,6 +41,8 @@ pub struct Config {
     pub mouse: Option<bool>,
     /// Content alignment: "center" (default) or "left".
     pub align: Option<String>,
+    /// Max entries kept in history.toml (0 disables position restore).
+    pub history_size: Option<usize>,
 }
 
 /// Path of `config.toml` next to the executable; falls back to the
@@ -177,6 +179,14 @@ mod tests {
         assert_eq!(ContentAlign::Left.toggle(), ContentAlign::Center);
         assert_eq!(ContentAlign::Center.as_str(), "center");
         assert_eq!(ContentAlign::Left.as_str(), "left");
+    }
+
+    #[test]
+    fn parses_history_size() {
+        let cfg: Config = toml::from_str("history_size = 50\n").unwrap();
+        assert_eq!(cfg.history_size, Some(50));
+        let cfg: Config = toml::from_str("").unwrap();
+        assert_eq!(cfg.history_size, None);
     }
 
     #[test]

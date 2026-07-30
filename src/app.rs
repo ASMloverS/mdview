@@ -1,6 +1,7 @@
 //! TUI application: state machine and event loop.
 
 use crate::config::{Config, ContentAlign};
+use crate::history::History;
 use crate::markdown::parse_document;
 use crate::render::layout::render_document;
 use crate::render::Rendered;
@@ -47,13 +48,21 @@ pub struct App {
     pub level: ColorLevel,
     pub max_width: usize,
     pub align: ContentAlign,
+    pub history: History,
+    pub history_size: usize,
     pub show_help: bool,
     pub status: Option<String>,
     pub quit: bool,
 }
 
 impl App {
-    pub fn new(scheme: Scheme, level: ColorLevel, max_width: usize, align: ContentAlign) -> App {
+    pub fn new(
+        scheme: Scheme,
+        level: ColorLevel,
+        max_width: usize,
+        align: ContentAlign,
+        history_size: usize,
+    ) -> App {
         App {
             mode: Mode::Browser,
             files: scan_files(Path::new(".")),
@@ -69,6 +78,8 @@ impl App {
             level,
             max_width,
             align,
+            history: History::load(),
+            history_size,
             show_help: false,
             status: None,
             quit: false,
@@ -208,6 +219,7 @@ pub fn run(
     max_width: usize,
     mouse: bool,
     align: ContentAlign,
+    history_size: usize,
 ) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -219,7 +231,7 @@ pub fn run(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = event_loop(&mut terminal, start_file, scheme, level, max_width, align);
+    let result = event_loop(&mut terminal, start_file, scheme, level, max_width, align, history_size);
 
     disable_raw_mode()?;
     if mouse {
@@ -242,8 +254,9 @@ fn event_loop(
     level: ColorLevel,
     max_width: usize,
     align: ContentAlign,
+    history_size: usize,
 ) -> Result<()> {
-    let mut app = App::new(scheme, level, max_width, align);
+    let mut app = App::new(scheme, level, max_width, align, history_size);
     if let Some(path) = start_file {
         let term_w = terminal.size()?.width;
         let width = content_width(term_w, max_width);
@@ -488,7 +501,7 @@ mod tests {
 
     fn test_app(lines: usize, view_height: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center);
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0);
         app.mode = Mode::Reader;
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),
