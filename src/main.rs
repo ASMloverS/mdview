@@ -20,7 +20,8 @@ use style::{ColorLevel, Scheme, DEFAULT_THEME};
 #[derive(Parser)]
 #[command(name = "mdview", version, about = "Terminal markdown renderer")]
 struct Cli {
-    /// Markdown file to open directly. With no file, opens the file browser.
+    /// Markdown file to open directly. With no file, resumes the last opened
+    /// file (file browser on first run).
     file: Option<PathBuf>,
 
     /// Theme name: a builtin scheme or `md-styles/<name>.css`.
