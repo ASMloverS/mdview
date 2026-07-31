@@ -31,6 +31,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.show_help {
         draw_help(frame, app);
     }
+    if app.resume_hint {
+        draw_resume_hint(frame, app);
+    }
 }
 
 /// Convert rendered lines to ratatui lines.
@@ -142,6 +145,31 @@ fn draw_help(frame: &mut Frame, app: &App) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" keys ")
+        .border_style(accent_style(app));
+    frame.render_widget(Paragraph::new(lines).block(block), area);
+}
+
+/// 首次使用提示：无最近文件可恢复时的居中浮层。
+fn draw_resume_hint(frame: &mut Frame, app: &App) {
+    let lines = vec![
+        Line::from(Span::styled(
+            "No recent file to resume.",
+            chrome_style(app),
+        )),
+        Line::from(Span::styled(
+            "Open one directly: mdview <file>",
+            dim_style(app),
+        )),
+        Line::from(Span::styled(
+            "Press any key to browse.",
+            dim_style(app),
+        )),
+    ];
+    let area = centered_rect(50, lines.len() as u16 + 2, frame.area());
+    frame.render_widget(Clear, area);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" welcome ")
         .border_style(accent_style(app));
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }

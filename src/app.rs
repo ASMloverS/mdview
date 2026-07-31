@@ -413,6 +413,10 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         return;
     }
 
+    if app.resume_hint {
+        app.resume_hint = false;
+        return;
+    }
     if key.code == KeyCode::Char('?') {
         app.show_help = !app.show_help;
         return;
@@ -870,5 +874,15 @@ mod tests {
         let mut h2 = History::load_from(&hist_path);
         assert!(h2.latest_valid().is_none(), "失效条目清除已持久化");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn resume_hint_dismissed_by_any_key() {
+        let mut app = test_app(10, 24);
+        app.resume_hint = true;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('j')));
+        assert!(!app.resume_hint);
+        let r = app.reader.as_ref().unwrap();
+        assert_eq!(r.cursor, 0, "按键被弹窗拦截，不传给阅读器");
     }
 }
