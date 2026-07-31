@@ -72,6 +72,30 @@ impl History {
         self.save();
     }
 
+    /// 最近一个仍可打开的文件：从 MRU 头部遍历，剔除不存在/不可读
+    /// 的条目（立即写盘），返回第一个可用条目。全部失效则清空历史。
+    pub fn latest_valid(&mut self) -> Option<PathBuf> {
+        let first_valid = self
+            .entries
+            .iter()
+            .position(|e| std::fs::read_to_string(&e.path).is_ok());
+        match first_valid {
+            Some(0) => Some(self.entries[0].path.clone()),
+            Some(i) => {
+                self.entries.drain(..i);
+                self.save();
+                Some(self.entries[0].path.clone())
+            }
+            None => {
+                if !self.entries.is_empty() {
+                    self.entries.clear();
+                    self.save();
+                }
+                None
+            }
+        }
+    }
+
     fn save(&self) {
         let doc = Doc { history: self.entries.clone() };
         if let Ok(text) = toml::to_string(&doc) {
@@ -143,6 +167,60 @@ mod tests {
         h.record(&f, 42, 200);
         let h2 = History::load_from(&p);
         assert_eq!(h2.get(&f), Some(42));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn latest_valid_empty_history_returns_none() {
+        let dir = temp_dir("latest-empty");
+        let mut h = History::load_from(&dir.join("history.toml"));
+        assert_eq!(h.latest_valid(), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn latest_valid_skips_stale_and_persists() {
+        let dir = temp_dir("latest-skip");
+        let p = dir.join("history.toml");
+        let gone = dir.join("gone.md");
+        let keep = dir.join("keep.md");
+        std::fs::write(&keep, "x").unwrap();
+        let mut h = History::load_from(&p);
+        h.record(&keep, 2, 200);
+        h.record(&gone, 3, 200); // gone 从不存在，record 后位于 MRU 头部
+        assert_eq!(h.latest_valid(), Some(canonical(&keep)));
+        assert_eq!(h.entries.len(), 1, "失效条目被剔除");
+        let h2 = History::load_from(&p);
+        assert_eq!(h2.entries.len(), 1, "剔除结果已写盘");
+        assert_eq!(h2.get(&keep), Some(2));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn latest_valid_all_stale_clears_history() {
+        let dir = temp_dir("latest-clear");
+        let p = dir.join("history.toml");
+        let mut h = History::load_from(&p);
+        h.record(&dir.join("a.md"), 1, 200);
+        h.record(&dir.join("b.md"), 2, 200);
+        assert_eq!(h.latest_valid(), None);
+        assert!(h.entries.is_empty());
+        let h2 = History::load_from(&p);
+        assert!(h2.entries.is_empty(), "清空后已写盘");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn latest_valid_first_entry_valid_touches_nothing() {
+        let dir = temp_dir("latest-first");
+        let p = dir.join("history.toml");
+        let a = dir.join("a.md");
+        std::fs::write(&a, "x").unwrap();
+        let mut h = History::load_from(&p);
+        h.record(&dir.join("stale.md"), 1, 200);
+        h.record(&a, 5, 200); // a 在 MRU 头部，stale 在后
+        assert_eq!(h.latest_valid(), Some(canonical(&a)));
+        assert_eq!(h.entries.len(), 2, "命中首个有效条目即停，后面的失效条目保留");
         std::fs::remove_dir_all(&dir).ok();
     }
 }
