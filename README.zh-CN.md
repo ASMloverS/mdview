@@ -29,7 +29,7 @@ Windows（MSVC）下如遇到链接器问题，用仓库自带的环境包装脚
 ## 使用
 
 ```bash
-mdview                # 打开文件浏览器（扫描当前目录的 .md）
+mdview                # 恢复上次阅读的文件（首次使用进入文件浏览器）
 mdview README.md      # 直接打开文件
 mdview -t dracula a.md
 mdview --list-themes  # 列出所有可用主题

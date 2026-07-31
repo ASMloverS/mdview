@@ -23,7 +23,7 @@ On Windows (MSVC), if linking fails use the bundled wrapper: `.cargo-vc.bat buil
 ## Usage
 
 ```bash
-mdview               # file browser
+mdview               # resume last file (file browser on first run)
 mdview README.md     # open a file
 cat a.md | mdview    # pipe mode
 ```
