@@ -1,4 +1,4 @@
-//! TUI drawing: browser, reader, theme picker, help overlay.
+//! TUI drawing: browser, reader, theme picker, help and resume-hint overlays.
 
 pub mod browser;
 pub mod picker;
