@@ -51,6 +51,7 @@ pub struct App {
     pub history: History,
     pub history_size: usize,
     pub show_help: bool,
+    pub resume_hint: bool,
     pub status: Option<String>,
     pub quit: bool,
 }
@@ -81,6 +82,7 @@ impl App {
             history: History::load(),
             history_size,
             show_help: false,
+            resume_hint: false,
             status: None,
             quit: false,
         }
@@ -114,6 +116,19 @@ impl App {
         self.reader = Some(reader);
         self.search_matches.clear();
         self.mode = Mode::Reader;
+    }
+
+    /// 无参数启动：恢复最近可读文件（光标由 open_reader 恢复）；
+    /// 无可用历史时进浏览器并弹首次使用提示。
+    /// history_size = 0（禁用历史）时静默进浏览器。
+    pub fn resume_latest(&mut self, width: u16, offset: u16) {
+        if self.history_size == 0 {
+            return;
+        }
+        match self.history.latest_valid() {
+            Some(path) => self.open_reader(path, width, offset),
+            None => self.resume_hint = true,
+        }
     }
 
     pub fn reload_reader(&mut self) {
@@ -266,11 +281,13 @@ fn event_loop(
     history_size: usize,
 ) -> Result<()> {
     let mut app = App::new(scheme, level, max_width, align, history_size);
+    let term_w = terminal.size()?.width;
+    let width = content_width(term_w, max_width);
+    let offset = content_offset(term_w.saturating_sub(2), width, app.align);
     if let Some(path) = start_file {
-        let term_w = terminal.size()?.width;
-        let width = content_width(term_w, max_width);
-        let offset = content_offset(term_w.saturating_sub(2), width, app.align);
         app.open_reader(path, width, offset);
+    } else {
+        app.resume_latest(width, offset);
     }
 
     while !app.quit {
@@ -777,5 +794,57 @@ mod tests {
         let h = History::load_from(&hist_path);
         assert_eq!(h.get(&file), None);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn resume_latest_opens_reader_and_restores_cursor() {
+        let (dir, file) = temp_doc("resume-open", 40);
+        let mut app = App::new(
+            Scheme::load(crate::style::DEFAULT_THEME),
+            ColorLevel::True,
+            100,
+            ContentAlign::Center,
+            200,
+        );
+        let mut h = History::load_from(&dir.join("history.toml"));
+        h.record(&file, 30, 200);
+        app.history = h;
+        app.resume_latest(80, 0);
+        assert!(matches!(app.mode, Mode::Reader));
+        assert_eq!(app.reader.as_ref().unwrap().cursor, 30);
+        assert!(!app.resume_hint);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn resume_latest_empty_history_shows_hint_in_browser() {
+        let dir = std::env::temp_dir().join(format!("mdview-app-hist-{}-resume-hint", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut app = App::new(
+            Scheme::load(crate::style::DEFAULT_THEME),
+            ColorLevel::True,
+            100,
+            ContentAlign::Center,
+            200,
+        );
+        app.history = History::load_from(&dir.join("history.toml"));
+        app.resume_latest(80, 0);
+        assert!(matches!(app.mode, Mode::Browser));
+        assert!(app.resume_hint);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn resume_latest_disabled_history_is_silent() {
+        let mut app = App::new(
+            Scheme::load(crate::style::DEFAULT_THEME),
+            ColorLevel::True,
+            100,
+            ContentAlign::Center,
+            0, // history_size = 0：禁用历史
+        );
+        app.resume_latest(80, 0);
+        assert!(matches!(app.mode, Mode::Browser));
+        assert!(!app.resume_hint, "禁用历史时静默进浏览器");
     }
 }
