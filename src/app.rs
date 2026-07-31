@@ -847,4 +847,28 @@ mod tests {
         assert!(matches!(app.mode, Mode::Browser));
         assert!(!app.resume_hint, "禁用历史时静默进浏览器");
     }
+
+    #[test]
+    fn resume_latest_all_stale_shows_hint_in_browser() {
+        let dir = std::env::temp_dir().join(format!("mdview-app-hist-{}-resume-stale", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let hist_path = dir.join("history.toml");
+        let mut app = App::new(
+            Scheme::load(crate::style::DEFAULT_THEME),
+            ColorLevel::True,
+            100,
+            ContentAlign::Center,
+            200,
+        );
+        let mut h = History::load_from(&hist_path);
+        h.record(&dir.join("gone.md"), 7, 200); // 从不存在的文件
+        app.history = h;
+        app.resume_latest(80, 0);
+        assert!(matches!(app.mode, Mode::Browser));
+        assert!(app.resume_hint, "全部失效按空历史处理：弹提示");
+        // 清空已写盘：重新加载后 latest_valid 仍为 None。
+        let mut h2 = History::load_from(&hist_path);
+        assert!(h2.latest_valid().is_none(), "失效条目清除已持久化");
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

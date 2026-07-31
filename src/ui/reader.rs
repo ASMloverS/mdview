@@ -48,7 +48,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         (reader.scroll * 100) / (total - reader.view_height).max(1)
     };
-    let title = format!(" {} · {}% ", reader.path.display(), pct);
+    let title = format!(" {} · {}% ", display_path(&reader.path).display(), pct);
     let widget = Paragraph::new(lines)
         .block(
             Block::default()
@@ -86,6 +86,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Line::from(Span::styled(format!(" {right}"), dim_style(app))),
     ]);
     frame.render_widget(bar, chunks[1]);
+}
+
+/// 显示用路径：去掉 Windows canonicalize 产生的 `\\?\` verbatim 前缀。
+fn display_path(path: &std::path::Path) -> std::path::PathBuf {
+    let s = path.to_string_lossy();
+    match s.strip_prefix(r"\\?\") {
+        Some(stripped) => std::path::PathBuf::from(stripped),
+        None => path.to_path_buf(),
+    }
 }
 
 #[cfg(test)]
@@ -182,6 +191,19 @@ mod tests {
         let cell = buf.cell((1, 3)).unwrap();
         assert_eq!(cell.fg, Color::Rgb(255, 0, 0));
         assert_eq!(cell.bg, bg);
+    }
+
+    #[test]
+    fn display_path_strips_verbatim_prefix() {
+        assert_eq!(
+            display_path(std::path::Path::new(r"\\?\C:\docs\note.md")),
+            PathBuf::from(r"C:\docs\note.md"),
+        );
+        // 普通路径原样返回。
+        assert_eq!(
+            display_path(std::path::Path::new("docs/note.md")),
+            PathBuf::from("docs/note.md"),
+        );
     }
 
     #[test]
