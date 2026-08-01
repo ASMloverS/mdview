@@ -58,4 +58,7 @@ set "CFG=%~dp0bin\config.toml"
 >> "%CFG%" echo.
 >> "%CFG%" echo # Enable mouse capture in the TUI
 >> "%CFG%" echo # mouse = true
+>> "%CFG%" echo.
+>> "%CFG%" echo # Sidebar width in percent (10-60, default 30)
+>> "%CFG%" echo # sidebar_width = 30
 goto :eof
