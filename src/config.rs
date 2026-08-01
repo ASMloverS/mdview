@@ -31,6 +31,9 @@ impl ContentAlign {
     }
 }
 
+/// 默认侧栏宽度（百分比）。
+pub const DEFAULT_SIDEBAR_WIDTH: u16 = 30;
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     /// Theme name: builtin or `md-styles/<name>.css`.
@@ -43,6 +46,8 @@ pub struct Config {
     pub align: Option<String>,
     /// Max entries kept in history.toml (0 disables position restore).
     pub history_size: Option<usize>,
+    /// Sidebar width in percent (10..=60, default 30).
+    pub sidebar_width: Option<u16>,
 }
 
 /// Path of `config.toml` next to the executable; falls back to the
@@ -75,6 +80,11 @@ impl Config {
     /// other keys. Same best-effort semantics as `save_theme`.
     pub fn save_align(value: &str) {
         let _ = save_key_to(&config_path(), "align", value);
+    }
+
+    /// 侧栏宽度百分比：缺省 30，clamp 到 10..=60。
+    pub fn sidebar_width(&self) -> u16 {
+        self.sidebar_width.unwrap_or(DEFAULT_SIDEBAR_WIDTH).clamp(10, 60)
     }
 }
 
@@ -187,6 +197,18 @@ mod tests {
         assert_eq!(cfg.history_size, Some(50));
         let cfg: Config = toml::from_str("").unwrap();
         assert_eq!(cfg.history_size, None);
+    }
+
+    #[test]
+    fn sidebar_width_defaults_and_clamps() {
+        let cfg: Config = toml::from_str("").unwrap();
+        assert_eq!(cfg.sidebar_width(), 30);
+        let cfg: Config = toml::from_str("sidebar_width = 45\n").unwrap();
+        assert_eq!(cfg.sidebar_width(), 45);
+        let cfg: Config = toml::from_str("sidebar_width = 3\n").unwrap();
+        assert_eq!(cfg.sidebar_width(), 10, "低于下限 clamp 到 10");
+        let cfg: Config = toml::from_str("sidebar_width = 99\n").unwrap();
+        assert_eq!(cfg.sidebar_width(), 60, "高于上限 clamp 到 60");
     }
 
     #[test]
