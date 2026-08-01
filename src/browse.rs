@@ -23,10 +23,6 @@ impl Entry {
         }
     }
 
-    pub fn is_dir(&self) -> bool {
-        matches!(self, Entry::Dir(_))
-    }
-
     /// 显示名：常规条目取文件名；驱动器根（无文件名）取完整路径。
     pub fn name(&self) -> String {
         let p = self.path();
@@ -237,8 +233,8 @@ mod tests {
         let entries = load(&Loc::Dir(dir.clone())).unwrap();
         let names: Vec<String> = entries.iter().map(|e| e.name()).collect();
         assert_eq!(names, vec!["adir", "zdir", "A.MD", "b.md"]);
-        assert!(entries[0].is_dir() && entries[1].is_dir());
-        assert!(!entries[2].is_dir() && !entries[3].is_dir());
+        assert!(matches!(entries[0], Entry::Dir(_)) && matches!(entries[1], Entry::Dir(_)));
+        assert!(matches!(entries[2], Entry::File(_)) && matches!(entries[3], Entry::File(_)));
         std::fs::remove_dir_all(&dir).ok();
     }
 

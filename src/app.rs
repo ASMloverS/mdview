@@ -988,6 +988,17 @@ mod tests {
     }
 
     #[test]
+    fn o_is_noop_when_sidebar_already_open() {
+        let (dir, mut app) = sidebar_app("o-noop");
+        app.sidebar.as_mut().unwrap().focus = Focus::Reader;
+        let before = app.sidebar.as_ref().unwrap().browser.loc.clone();
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
+        let s = app.sidebar.as_ref().unwrap();
+        assert_eq!(s.browser.loc, before, "侧栏已开时 o 不重建浏览器状态");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn enter_unbound_in_reader_focus() {
         let (dir, mut app) = sidebar_app("reader-enter");
         app.sidebar.as_mut().unwrap().focus = Focus::Reader;

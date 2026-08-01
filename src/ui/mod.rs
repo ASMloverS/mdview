@@ -27,6 +27,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     {
         let panes = Layout::default()
             .direction(Direction::Horizontal)
+            // sidebar_width 来自 Config::sidebar_width()（clamp 10..=60），减法不会下溢。
             .constraints([
                 Constraint::Percentage(app.sidebar_width),
                 Constraint::Percentage(100 - app.sidebar_width),
