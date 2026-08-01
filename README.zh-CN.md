@@ -78,7 +78,7 @@ max_width = 100
 mouse = true
 align = "center"        # 或 "left"；阅读器内按 a 切换时自动写入
 history_size = 200      # 记住每个文件的光标行（history.toml；0 禁用）
-sidebar_width = 30      # 侧栏宽度（列数，限制在 10-60）
+sidebar_width = 30      # 侧栏宽度百分比（限制在 10-60）
 ```
 
 优先级：CLI 参数 > config.toml > 内置默认（CLI 参数为一次性覆盖，不落盘）。

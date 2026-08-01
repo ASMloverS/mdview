@@ -50,7 +50,7 @@ max_width = 100
 mouse = true
 align = "center"        # or "left"; written automatically on 'a' toggle
 history_size = 200      # remember cursor line per file (history.toml; 0 disables)
-sidebar_width = 30      # sidebar width in columns (clamped to 10-60)
+sidebar_width = 30      # sidebar width in percent (clamped to 10-60)
 ```
 
 Priority: CLI flags > config.toml > builtin defaults (flags are one-shot, never persisted).
