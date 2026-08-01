@@ -1,10 +1,10 @@
-//! TUI drawing: browser, reader, theme picker, help and resume-hint overlays.
+//! TUI drawing: sidebar, reader, theme picker and help overlay.
 
-pub mod browser;
 pub mod picker;
 pub mod reader;
+pub mod sidebar;
 
-use crate::app::{App, Mode};
+use crate::app::{App, Focus};
 use crate::render::to_ratatui_line;
 use crate::style::Computed;
 use ratatui::prelude::*;
@@ -20,9 +20,23 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         );
     }
 
-    match app.mode {
-        Mode::Browser => browser::draw(frame, app),
-        Mode::Reader => reader::draw(frame, app),
+    if let Some(focused) = app
+        .sidebar
+        .as_ref()
+        .map(|s| matches!(s.focus, Focus::Sidebar))
+    {
+        let panes = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(app.sidebar_width),
+                Constraint::Percentage(100 - app.sidebar_width),
+            ])
+            .split(frame.area());
+        sidebar::draw(frame, app, panes[0], focused);
+        reader::draw(frame, app, panes[1], !focused);
+    } else {
+        let area = frame.area();
+        reader::draw(frame, app, area, true);
     }
 
     if app.picker.is_some() {
@@ -30,9 +44,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
     if app.show_help {
         draw_help(frame, app);
-    }
-    if app.resume_hint {
-        draw_resume_hint(frame, app);
     }
 }
 
@@ -117,17 +128,19 @@ pub fn centered_rect(percent_x: u16, lines: u16, area: Rect) -> Rect {
 fn draw_help(frame: &mut Frame, app: &App) {
     let keys = [
         ("j/k, ↓/↑", "move / scroll"),
-        ("o", "open file / enter dir (browser)"),
-        ("←, Bksp", "parent directory (browser)"),
-        ("Esc", "back (reader) / quit (browser)"),
+        ("o", "open sidebar (reader)"),
+        ("Tab", "switch focus (sidebar open)"),
+        ("Enter", "open file / enter dir (sidebar)"),
+        ("Bksp", "parent directory (sidebar)"),
+        ("Esc", "close sidebar (sidebar focus)"),
         ("d/u, PgDn/PgUp", "half page down/up"),
         ("Ctrl+f/b", "page forward / back"),
         ("g/G", "top / bottom"),
         ("/, n/N", "search / next match"),
         ("t", "theme picker"),
         ("a", "toggle align (reader)"),
-        ("r", "refresh directory (browser)"),
-        ("q", "quit"),
+        ("r", "refresh directory (sidebar)"),
+        ("q", "close sidebar / quit (reader)"),
         ("?", "toggle this help"),
     ];
     let dim = dim_style(app);
@@ -146,31 +159,6 @@ fn draw_help(frame: &mut Frame, app: &App) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" keys ")
-        .border_style(accent_style(app));
-    frame.render_widget(Paragraph::new(lines).block(block), area);
-}
-
-/// 首次使用提示：无最近文件可恢复时的居中浮层。
-fn draw_resume_hint(frame: &mut Frame, app: &App) {
-    let lines = vec![
-        Line::from(Span::styled(
-            "No recent file to resume.",
-            chrome_style(app),
-        )),
-        Line::from(Span::styled(
-            "Open one directly: mdview <file>",
-            dim_style(app),
-        )),
-        Line::from(Span::styled(
-            "Press any key to browse.",
-            dim_style(app),
-        )),
-    ];
-    let area = centered_rect(50, lines.len() as u16 + 2, frame.area());
-    frame.render_widget(Clear, area);
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" welcome ")
         .border_style(accent_style(app));
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }

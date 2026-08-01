@@ -1,21 +1,36 @@
-//! Full-screen reader view with scroll and search.
+//! Reader view with scroll and search; empty-state hint when no file is open.
 
 use super::{accent_style, chrome_style, convert, cursor_style, dim_style};
 use crate::app::{content_offset, content_width, App};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn draw(frame: &mut Frame, app: &mut App) {
-    let area = frame.area();
+pub fn draw(frame: &mut Frame, app: &mut App, area: Rect, focused: bool) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Length(2)])
         .split(area);
     let view = chunks[0];
+    let border = if focused { accent_style(app) } else { chrome_style(app) };
+
+    // 空态：无打开文件时的提示。
+    if app.reader.is_none() {
+        let hint = if app.sidebar.is_some() {
+            "Select a markdown file from the sidebar"
+        } else {
+            "Press o to open the sidebar"
+        };
+        let widget = Paragraph::new(Line::from(Span::styled(hint, dim_style(app)))).block(
+            Block::default().borders(Borders::ALL).border_style(border),
+        );
+        frame.render_widget(widget, view);
+        draw_status_bar(frame, app, chunks[1]);
+        return;
+    }
 
     let want_width = content_width(view.width, app.max_width);
     let want_offset = content_offset(view.width.saturating_sub(2), want_width, app.align);
-    let Some(reader) = app.reader.as_mut() else { return };
+    let reader = app.reader.as_mut().unwrap();
     reader.view_height = view.height.saturating_sub(2) as usize;
     if reader.width != want_width || reader.offset != want_offset {
         let path = reader.path.clone();
@@ -54,12 +69,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(title)
-                .border_style(chrome_style(app)),
+                .border_style(border),
         )
         .scroll((reader.scroll as u16, 0));
     frame.render_widget(widget, view);
 
-    // Status / search bar.
+    draw_status_bar(frame, app, chunks[1]);
+}
+
+/// 状态栏：搜索输入或键位提示；附带 status 与匹配计数。
+fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let (left, right) = if app.searching {
         (
             format!("/{}", app.search_query),
@@ -72,20 +91,24 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             format!(" · {} matches", app.search_matches.len())
         };
         (
-            format!("Esc back · / search · t theme · ? help{matches}"),
-            String::from("q quit"),
+            format!("o sidebar · / search · t theme · ? help{matches}"),
+            if app.sidebar.is_some() {
+                String::from("Tab focus · q quit")
+            } else {
+                String::from("q quit")
+            },
         )
     };
     let mut spans = vec![Span::styled(format!(" {left}"), dim_style(app))];
     if let Some(status) = &app.status {
         spans.push(Span::styled(format!(" · {status}"), accent_style(app)));
     }
-    spans.push(Span::styled(" ".repeat(view.width as usize), dim_style(app)));
+    spans.push(Span::styled(" ".repeat(area.width as usize), dim_style(app)));
     let bar = Paragraph::new(vec![
         Line::from(spans),
         Line::from(Span::styled(format!(" {right}"), dim_style(app))),
     ]);
-    frame.render_widget(bar, chunks[1]);
+    frame.render_widget(bar, area);
 }
 
 /// 显示用路径：去掉 Windows canonicalize 产生的 `\\?\` verbatim 前缀。
@@ -100,7 +123,7 @@ fn display_path(path: &std::path::Path) -> std::path::PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{Mode, Reader};
+    use crate::app::Reader;
     use crate::config::ContentAlign;
     use crate::render::{Rendered, SSpan};
     use crate::style::{ColorLevel, Computed, Rgb, Scheme};
@@ -111,8 +134,7 @@ mod tests {
 
     fn test_app(lines: usize, cursor: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0);
-        app.mode = Mode::Reader;
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0, 30);
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),
             rendered: Rendered {
@@ -136,7 +158,12 @@ mod tests {
         let bg = Color::Rgb(want.0, want.1, want.2);
         let backend = TestBackend::new(30, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                draw(f, &mut app, area, true);
+            })
+            .unwrap();
         let buf = terminal.backend().buffer();
         // 边框内侧：cursor=2, scroll=0 → 屏幕行 y = 1 + 2 = 3。
         for x in 1..29 {
@@ -162,7 +189,12 @@ mod tests {
         let bg = Color::Rgb(want.0, want.1, want.2);
         let backend = TestBackend::new(30, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                draw(f, &mut app, area, true);
+            })
+            .unwrap();
         let buf = terminal.backend().buffer();
         let cell = buf.cell((1, 3)).unwrap();
         assert_eq!(cell.symbol(), "x");
@@ -186,7 +218,12 @@ mod tests {
         let bg = Color::Rgb(want.0, want.1, want.2);
         let backend = TestBackend::new(30, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                draw(f, &mut app, area, true);
+            })
+            .unwrap();
         let buf = terminal.backend().buffer();
         let cell = buf.cell((1, 3)).unwrap();
         assert_eq!(cell.fg, Color::Rgb(255, 0, 0));
@@ -216,7 +253,12 @@ mod tests {
         };
         let backend = TestBackend::new(30, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &mut app)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                draw(f, &mut app, area, true);
+            })
+            .unwrap();
         let buf = terminal.backend().buffer();
         assert_eq!(buf.cell((5, 3)).unwrap().bg, Color::Reset);
     }

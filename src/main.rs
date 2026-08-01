@@ -53,6 +53,7 @@ fn main() -> Result<()> {
     }
 
     let cfg = Config::load();
+    let sidebar_width = cfg.sidebar_width();
     let theme_name = cli
         .theme
         .or(cfg.theme)
@@ -80,7 +81,16 @@ fn main() -> Result<()> {
     }
 
     let history_size = cfg.history_size.unwrap_or(history::DEFAULT_HISTORY_SIZE);
-    app::run(cli.file, scheme, level, max_width, cfg.mouse.unwrap_or(true), align, history_size)
+    app::run(
+        cli.file,
+        scheme,
+        level,
+        max_width,
+        cfg.mouse.unwrap_or(true),
+        align,
+        history_size,
+        sidebar_width,
+    )
 }
 
 fn terminal_width() -> usize {

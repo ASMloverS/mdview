@@ -214,13 +214,6 @@ fn absolutize(p: &Path) -> PathBuf {
     }
 }
 
-/// 目录统计：(子目录数, md 文件数)，单层不递归；不可读返回 None。
-pub fn dir_stats(path: &Path) -> Option<(usize, usize)> {
-    let entries = load(&Loc::Dir(path.to_path_buf())).ok()?;
-    let dirs = entries.iter().filter(|e| e.is_dir()).count();
-    Some((dirs, entries.len() - dirs))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,15 +350,6 @@ mod tests {
         let before = b.loc.clone();
         assert!(b.reveal(&dir.join("gone").join("x.md")).is_err());
         assert_eq!(b.loc, before, "失败后浏览器不动");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn dir_stats_counts_dirs_and_md_files() {
-        let dir = fixture("stats");
-        let (dirs, files) = dir_stats(&dir).unwrap();
-        assert_eq!((dirs, files), (2, 2), "adir/zdir 两个目录，A.MD/b.md 两个文件");
-        assert!(dir_stats(&dir.join("gone")).is_none());
         std::fs::remove_dir_all(&dir).ok();
     }
 

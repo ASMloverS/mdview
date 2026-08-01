@@ -19,9 +19,17 @@ use ratatui::prelude::*;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-pub enum Mode {
-    Browser,
+/// 焦点：侧栏或阅读器。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    Sidebar,
     Reader,
+}
+
+/// 目录侧栏：浏览器状态 + 焦点。
+pub struct Sidebar {
+    pub browser: Browser,
+    pub focus: Focus,
 }
 
 pub struct Reader {
@@ -35,10 +43,8 @@ pub struct Reader {
 }
 
 pub struct App {
-    pub mode: Mode,
-    pub browser: Browser,
-    pub preview: Option<(PathBuf, u16, String, Rendered)>,
     pub reader: Option<Reader>,
+    pub sidebar: Option<Sidebar>,
     pub picker: Option<usize>,
     pub schemes: Vec<String>,
     pub searching: bool,
@@ -48,10 +54,10 @@ pub struct App {
     pub level: ColorLevel,
     pub max_width: usize,
     pub align: ContentAlign,
+    pub sidebar_width: u16,
     pub history: History,
     pub history_size: usize,
     pub show_help: bool,
-    pub resume_hint: bool,
     pub status: Option<String>,
     pub quit: bool,
 }
@@ -63,12 +69,11 @@ impl App {
         max_width: usize,
         align: ContentAlign,
         history_size: usize,
+        sidebar_width: u16,
     ) -> App {
         App {
-            mode: Mode::Browser,
-            browser: Browser::from_cwd(),
-            preview: None,
             reader: None,
+            sidebar: None,
             picker: None,
             schemes: Scheme::available(),
             searching: false,
@@ -78,10 +83,10 @@ impl App {
             level,
             max_width,
             align,
+            sidebar_width,
             history: History::load(),
             history_size,
             show_help: false,
-            resume_hint: false,
             status: None,
             quit: false,
         }
@@ -94,10 +99,6 @@ impl App {
     }
 
     pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {
-        // 浏览器同步定位到所打开的文件（best-effort）。
-        if let Err(msg) = self.browser.reveal(&path) {
-            self.status = Some(msg);
-        }
         let rendered = self.render_file(&path, width, offset);
         let mut reader = Reader {
             path,
@@ -118,19 +119,57 @@ impl App {
         }
         self.reader = Some(reader);
         self.search_matches.clear();
-        self.mode = Mode::Reader;
     }
 
-    /// 无参数启动：恢复最近可读文件（光标由 open_reader 恢复）；
-    /// 无可用历史时进浏览器并弹首次使用提示。
-    /// history_size = 0（禁用历史）时静默进浏览器。
+    /// 无参数启动：恢复最近可读文件（光标由 open_reader 恢复）。
+    /// 无可用历史或禁用时什么都不做（由 start 负责开侧栏）。
     pub fn resume_latest(&mut self, width: u16, offset: u16) {
         if self.history_size == 0 {
             return;
         }
-        match self.history.latest_valid() {
+        if let Some(path) = self.history.latest_valid() {
+            self.open_reader(path, width, offset);
+        }
+    }
+
+    /// 启动分流：有文件（CLI 参数或历史恢复）开阅读器；否则开侧栏选文件。
+    pub fn start(&mut self, start_file: Option<PathBuf>, width: u16, offset: u16) {
+        match start_file {
             Some(path) => self.open_reader(path, width, offset),
-            None => self.resume_hint = true,
+            None => self.resume_latest(width, offset),
+        }
+        if self.reader.is_none() {
+            self.open_sidebar();
+        }
+    }
+
+    /// 打开侧栏：定位到当前阅读文件所在目录（无文件则从 cwd 开始）。
+    pub fn open_sidebar(&mut self) {
+        let mut browser = Browser::from_cwd();
+        if let Some(path) = self.reader.as_ref().map(|r| r.path.clone()) {
+            // 定位到当前文件（best-effort）。
+            if let Err(msg) = browser.reveal(&path) {
+                self.status = Some(msg);
+            }
+        }
+        self.sidebar = Some(Sidebar { browser, focus: Focus::Sidebar });
+    }
+
+    /// 当前焦点：侧栏开且焦点在侧栏 → Sidebar；否则 Reader。
+    pub fn focus(&self) -> Focus {
+        match &self.sidebar {
+            Some(s) if matches!(s.focus, Focus::Sidebar) => Focus::Sidebar,
+            _ => Focus::Reader,
+        }
+    }
+
+    /// 侧栏开时切换焦点。
+    pub fn toggle_focus(&mut self) {
+        if let Some(s) = self.sidebar.as_mut() {
+            s.focus = match s.focus {
+                Focus::Sidebar => Focus::Reader,
+                Focus::Reader => Focus::Sidebar,
+            };
         }
     }
 
@@ -154,7 +193,6 @@ impl App {
 
     pub fn apply_scheme(&mut self, name: &str) {
         self.scheme = Scheme::load(name);
-        self.preview = None;
         self.reload_reader();
         self.status = Some(format!("theme: {}", self.scheme.name));
     }
@@ -215,6 +253,7 @@ pub fn run(
     mouse: bool,
     align: ContentAlign,
     history_size: usize,
+    sidebar_width: u16,
 ) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -226,7 +265,16 @@ pub fn run(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = event_loop(&mut terminal, start_file, scheme, level, max_width, align, history_size);
+    let result = event_loop(
+        &mut terminal,
+        start_file,
+        scheme,
+        level,
+        max_width,
+        align,
+        history_size,
+        sidebar_width,
+    );
 
     disable_raw_mode()?;
     if mouse {
@@ -250,16 +298,13 @@ fn event_loop(
     max_width: usize,
     align: ContentAlign,
     history_size: usize,
+    sidebar_width: u16,
 ) -> Result<()> {
-    let mut app = App::new(scheme, level, max_width, align, history_size);
+    let mut app = App::new(scheme, level, max_width, align, history_size, sidebar_width);
     let term_w = terminal.size()?.width;
     let width = content_width(term_w, max_width);
     let offset = content_offset(term_w.saturating_sub(2), width, app.align);
-    if let Some(path) = start_file {
-        app.open_reader(path, width, offset);
-    } else {
-        app.resume_latest(width, offset);
-    }
+    app.start(start_file, width, offset);
 
     while !app.quit {
         terminal.draw(|frame| crate::ui::draw(frame, &mut app))?;
@@ -268,7 +313,6 @@ fn event_loop(
                 Event::Key(key) if key.kind == KeyEventKind::Press => handle_key(&mut app, key),
                 Event::Mouse(m) => handle_mouse(&mut app, m.kind),
                 Event::Resize(_, _) => {
-                    app.preview = None;
                     if let Some(reader) = app.reader.as_mut() {
                         reader.width = 0; // force re-render in draw
                     }
@@ -384,10 +428,6 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         return;
     }
 
-    if app.resume_hint {
-        app.resume_hint = false;
-        return;
-    }
     if key.code == KeyCode::Char('?') {
         app.show_help = !app.show_help;
         return;
@@ -406,38 +446,51 @@ fn handle_key(app: &mut App, key: KeyEvent) {
                 .unwrap_or(0);
             app.picker = Some(idx);
         }
-        _ => match app.mode {
-            Mode::Browser => browser_key(app, key),
-            Mode::Reader => reader_key(app, key),
+        KeyCode::Tab if app.sidebar.is_some() => app.toggle_focus(),
+        _ => match app.focus() {
+            Focus::Sidebar => sidebar_key(app, key),
+            Focus::Reader => reader_key(app, key),
         },
     }
 }
 
-fn browser_key(app: &mut App, key: KeyEvent) {
+fn sidebar_key(app: &mut App, key: KeyEvent) {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => app.quit = true,
-        KeyCode::Char('j') | KeyCode::Down => app.browser.move_sel(1),
-        KeyCode::Char('k') | KeyCode::Up => app.browser.move_sel(-1),
-        KeyCode::Char('o') => match app.browser.enter() {
-            EnterOutcome::OpenFile(path) => {
-                app.preview = None;
-                app.open_reader(path, app.max_width as u16, 0);
+        KeyCode::Char('q') | KeyCode::Esc => app.sidebar = None,
+        KeyCode::Char('j') | KeyCode::Down => {
+            if let Some(s) = app.sidebar.as_mut() {
+                s.browser.move_sel(1);
             }
-            EnterOutcome::Failed(msg) => app.status = Some(msg),
-            EnterOutcome::Entered => app.preview = None,
-            EnterOutcome::Noop => {}
-        },
-        KeyCode::Left | KeyCode::Backspace => {
-            if let Err(msg) = app.browser.up() {
-                app.status = Some(msg);
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            if let Some(s) = app.sidebar.as_mut() {
+                s.browser.move_sel(-1);
             }
-            app.preview = None;
+        }
+        KeyCode::Enter => {
+            let outcome = app.sidebar.as_mut().map(|s| s.browser.enter());
+            match outcome {
+                Some(EnterOutcome::OpenFile(path)) => {
+                    app.open_reader(path, app.max_width as u16, 0);
+                    app.sidebar = None;
+                }
+                Some(EnterOutcome::Failed(msg)) => app.status = Some(msg),
+                _ => {}
+            }
+        }
+        KeyCode::Backspace => {
+            if let Some(s) = app.sidebar.as_mut() {
+                if let Err(msg) = s.browser.up() {
+                    app.status = Some(msg);
+                }
+            }
         }
         KeyCode::Char('r') => {
-            if let Err(msg) = app.browser.refresh() {
-                app.status = Some(msg);
+            if let Some(s) = app.sidebar.as_mut() {
+                if let Err(msg) = s.browser.refresh() {
+                    app.status = Some(msg);
+                }
             }
-            app.preview = None;
         }
         _ => {}
     }
@@ -459,10 +512,7 @@ fn reader_key(app: &mut App, key: KeyEvent) {
             save_position(app);
             app.quit = true;
         }
-        KeyCode::Esc => {
-            save_position(app);
-            app.mode = Mode::Browser;
-        }
+        KeyCode::Char('o') if app.sidebar.is_none() => app.open_sidebar(),
         KeyCode::Char('j') | KeyCode::Down => move_cursor(app, 1),
         KeyCode::Char('k') | KeyCode::Up => move_cursor(app, -1),
         KeyCode::Char('d') | KeyCode::PageDown => move_cursor(app, page),
@@ -500,16 +550,18 @@ fn close_picker(app: &mut App) {
 }
 
 fn handle_mouse(app: &mut App, kind: MouseEventKind) {
-    match kind {
-        MouseEventKind::ScrollDown => match app.mode {
-            Mode::Reader => scroll_reader(app, 3),
-            Mode::Browser => app.browser.move_sel(3),
-        },
-        MouseEventKind::ScrollUp => match app.mode {
-            Mode::Reader => scroll_reader(app, -3),
-            Mode::Browser => app.browser.move_sel(-3),
-        },
-        _ => {}
+    let delta = match kind {
+        MouseEventKind::ScrollDown => 3,
+        MouseEventKind::ScrollUp => -3,
+        _ => return,
+    };
+    match app.focus() {
+        Focus::Sidebar => {
+            if let Some(s) = app.sidebar.as_mut() {
+                s.browser.move_sel(delta);
+            }
+        }
+        Focus::Reader => scroll_reader(app, delta),
     }
 }
 
@@ -522,8 +574,7 @@ mod tests {
 
     fn test_app(lines: usize, view_height: usize) -> App {
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0);
-        app.mode = Mode::Reader;
+        let mut app = App::new(scheme, ColorLevel::True, 100, ContentAlign::Center, 0, 30);
         app.reader = Some(Reader {
             path: PathBuf::from("test.md"),
             rendered: Rendered {
@@ -743,7 +794,7 @@ mod tests {
     }
 
     #[test]
-    fn esc_saves_cursor_position() {
+    fn quit_saves_cursor_position() {
         let (dir, file) = temp_doc("save", 40);
         let hist_path = dir.join("history.toml");
         let mut app = test_app(10, 24);
@@ -751,7 +802,8 @@ mod tests {
         app.history = History::load_from(&hist_path);
         app.open_reader(file.clone(), 80, 0);
         app.reader.as_mut().unwrap().cursor = 7;
-        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('q')));
+        assert!(app.quit);
         let h = History::load_from(&hist_path);
         assert_eq!(h.get(&file), Some(7));
         std::fs::remove_dir_all(&dir).ok();
@@ -765,7 +817,7 @@ mod tests {
         app.history = History::load_from(&hist_path);
         app.open_reader(file.clone(), 80, 0);
         app.reader.as_mut().unwrap().cursor = 7;
-        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('q')));
         let h = History::load_from(&hist_path);
         assert_eq!(h.get(&file), None);
         std::fs::remove_dir_all(&dir).ok();
@@ -780,19 +832,19 @@ mod tests {
             100,
             ContentAlign::Center,
             200,
+            30,
         );
         let mut h = History::load_from(&dir.join("history.toml"));
         h.record(&file, 30, 200);
         app.history = h;
         app.resume_latest(80, 0);
-        assert!(matches!(app.mode, Mode::Reader));
+        assert!(app.reader.is_some());
         assert_eq!(app.reader.as_ref().unwrap().cursor, 30);
-        assert!(!app.resume_hint);
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn resume_latest_empty_history_shows_hint_in_browser() {
+    fn resume_latest_empty_history_leaves_reader_none() {
         let dir = std::env::temp_dir().join(format!("mdview-app-hist-{}-resume-hint", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut app = App::new(
@@ -801,11 +853,11 @@ mod tests {
             100,
             ContentAlign::Center,
             200,
+            30,
         );
         app.history = History::load_from(&dir.join("history.toml"));
         app.resume_latest(80, 0);
-        assert!(matches!(app.mode, Mode::Browser));
-        assert!(app.resume_hint);
+        assert!(app.reader.is_none());
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -817,14 +869,15 @@ mod tests {
             100,
             ContentAlign::Center,
             0, // history_size = 0：禁用历史
+            30,
         );
         app.resume_latest(80, 0);
-        assert!(matches!(app.mode, Mode::Browser));
-        assert!(!app.resume_hint, "禁用历史时静默进浏览器");
+        assert!(app.reader.is_none());
+        assert!(app.sidebar.is_none(), "禁用历史时静默，不开侧栏");
     }
 
     #[test]
-    fn resume_latest_all_stale_shows_hint_in_browser() {
+    fn resume_latest_all_stale_leaves_reader_none() {
         let dir = std::env::temp_dir().join(format!("mdview-app-hist-{}-resume-stale", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let hist_path = dir.join("history.toml");
@@ -834,100 +887,144 @@ mod tests {
             100,
             ContentAlign::Center,
             200,
+            30,
         );
         let mut h = History::load_from(&hist_path);
         h.record(&dir.join("gone.md"), 7, 200); // 从不存在的文件
         app.history = h;
         app.resume_latest(80, 0);
-        assert!(matches!(app.mode, Mode::Browser));
-        assert!(app.resume_hint, "全部失效按空历史处理：弹提示");
+        assert!(app.reader.is_none());
         // 清空已写盘：重新加载后 latest_valid 仍为 None。
         let mut h2 = History::load_from(&hist_path);
         assert!(h2.latest_valid().is_none(), "失效条目清除已持久化");
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    #[test]
-    fn resume_hint_dismissed_by_any_key() {
-        let mut app = test_app(10, 24);
-        app.resume_hint = true;
-        handle_key(&mut app, KeyEvent::from(KeyCode::Char('j')));
-        assert!(!app.resume_hint);
-        let r = app.reader.as_ref().unwrap();
-        assert_eq!(r.cursor, 0, "按键被弹窗拦截，不传给阅读器");
-    }
-
-    /// 造临时目录：sub/ 子目录 + a.md 文件，返回目录路径。
-    fn temp_browser_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("mdview-app-key-{}-{}", std::process::id(), tag));
+    /// 造临时目录（sub/ + a.md）和侧栏已开的 App（焦点在侧栏）。
+    fn sidebar_app(tag: &str) -> (PathBuf, App) {
+        let dir = std::env::temp_dir().join(format!("mdview-app-sb-{}-{}", std::process::id(), tag));
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("a.md"), "hello").unwrap();
-        dir
+        let mut app = test_app(10, 24);
+        app.sidebar = Some(Sidebar { browser: Browser::new(&dir), focus: Focus::Sidebar });
+        (dir, app)
     }
 
     #[test]
-    fn o_on_file_opens_reader() {
-        let dir = temp_browser_dir("open");
-        let mut app = test_app(10, 24);
-        app.mode = Mode::Browser;
-        app.browser = Browser::new(&dir);
-        app.browser.selected = 1; // a.md（目录优先，sub 在 0）
-        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
-        assert!(matches!(app.mode, Mode::Reader));
+    fn enter_on_file_opens_reader_and_closes_sidebar() {
+        let (dir, mut app) = sidebar_app("open");
+        app.sidebar.as_mut().unwrap().browser.selected = 1; // a.md
+        handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
+        assert!(app.sidebar.is_none(), "打开文件后侧栏关闭");
         assert_eq!(app.reader.as_ref().unwrap().path, dir.join("a.md"));
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn o_on_dir_enters_it() {
-        let dir = temp_browser_dir("enter");
-        let mut app = test_app(10, 24);
-        app.mode = Mode::Browser;
-        app.browser = Browser::new(&dir);
-        app.browser.selected = 0; // sub
-        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
-        assert!(matches!(app.mode, Mode::Browser), "进目录不打开阅读器");
-        assert_eq!(app.browser.loc, Loc::Dir(dir.join("sub")));
+    fn enter_on_dir_enters_it() {
+        let (dir, mut app) = sidebar_app("enter");
+        handle_key(&mut app, KeyEvent::from(KeyCode::Enter)); // selected 0 = sub
+        let s = app.sidebar.as_ref().unwrap();
+        assert_eq!(s.browser.loc, Loc::Dir(dir.join("sub")));
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn enter_l_right_h_unbound_in_browser() {
-        let dir = temp_browser_dir("unbound");
-        let mut app = test_app(10, 24);
-        app.mode = Mode::Browser;
-        app.browser = Browser::new(&dir);
-        handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
-        handle_key(&mut app, KeyEvent::from(KeyCode::Char('l')));
-        handle_key(&mut app, KeyEvent::from(KeyCode::Right));
-        handle_key(&mut app, KeyEvent::from(KeyCode::Char('h')));
-        assert!(matches!(app.mode, Mode::Browser));
-        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
-        assert_eq!(app.browser.selected, 0, "未绑定键不得移动选中");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn left_and_backspace_go_up() {
-        let dir = temp_browser_dir("up");
-        let mut app = test_app(10, 24);
-        app.mode = Mode::Browser;
-        app.browser = Browser::new(&dir.join("sub"));
-        handle_key(&mut app, KeyEvent::from(KeyCode::Left));
-        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
-        app.browser = Browser::new(&dir.join("sub"));
+    fn backspace_goes_up() {
+        let (dir, mut app) = sidebar_app("up");
+        app.sidebar.as_mut().unwrap().browser = Browser::new(&dir.join("sub"));
         handle_key(&mut app, KeyEvent::from(KeyCode::Backspace));
-        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        assert_eq!(app.sidebar.as_ref().unwrap().browser.loc, Loc::Dir(dir.clone()));
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn open_reader_reveals_file_in_browser() {
-        let (dir, file) = temp_doc("reveal-open", 5);
+    fn tab_toggles_focus() {
+        let (dir, mut app) = sidebar_app("tab");
+        handle_key(&mut app, KeyEvent::from(KeyCode::Tab));
+        assert_eq!(app.focus(), Focus::Reader);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Tab));
+        assert_eq!(app.focus(), Focus::Sidebar);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn q_follows_focus() {
+        let (dir, mut app) = sidebar_app("q");
+        // 侧栏焦点：q 关侧栏。
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('q')));
+        assert!(app.sidebar.is_none());
+        assert!(!app.quit);
+        // 阅读器焦点（侧栏开）：q 退出。
+        app.open_sidebar();
+        app.sidebar.as_mut().unwrap().focus = Focus::Reader;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('q')));
+        assert!(app.quit);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn esc_closes_only_from_sidebar_focus() {
+        let (dir, mut app) = sidebar_app("esc");
+        app.sidebar.as_mut().unwrap().focus = Focus::Reader;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        assert!(app.sidebar.is_some(), "阅读器焦点下 Esc 不关侧栏");
+        app.sidebar.as_mut().unwrap().focus = Focus::Sidebar;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Esc));
+        assert!(app.sidebar.is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn o_opens_sidebar_and_reveals_current_file() {
+        let (dir, file) = temp_doc("o-open", 5);
         let mut app = test_app(10, 24);
         app.open_reader(file.clone(), 80, 0);
-        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
-        assert_eq!(app.browser.entries[app.browser.selected].path(), file.as_path());
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
+        let s = app.sidebar.as_ref().unwrap();
+        assert_eq!(s.browser.loc, Loc::Dir(dir.clone()));
+        assert_eq!(s.browser.entries[s.browser.selected].path(), file.as_path());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn enter_unbound_in_reader_focus() {
+        let (dir, mut app) = sidebar_app("reader-enter");
+        app.sidebar.as_mut().unwrap().focus = Focus::Reader;
+        let before = app.reader.as_ref().unwrap().path.clone();
+        handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
+        assert_eq!(app.reader.as_ref().unwrap().path, before);
+        assert!(app.sidebar.is_some());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn start_without_file_opens_sidebar() {
+        let dir = std::env::temp_dir().join(format!("mdview-app-sb-{}-start", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut app = test_app(10, 24);
+        app.reader = None;
+        app.history_size = 200;
+        app.history = History::load_from(&dir.join("history.toml"));
+        app.start(None, 80, 0);
+        assert!(app.reader.is_none());
+        assert!(app.sidebar.is_some());
+        assert_eq!(app.focus(), Focus::Sidebar);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn start_with_history_opens_reader_without_sidebar() {
+        let (dir, file) = temp_doc("start-hist", 5);
+        let mut app = test_app(10, 24);
+        app.reader = None;
+        app.history_size = 200;
+        let mut h = History::load_from(&dir.join("history.toml"));
+        h.record(&file, 2, 200);
+        app.history = h;
+        app.start(None, 80, 0);
+        assert!(app.reader.is_some());
+        assert!(app.sidebar.is_none());
         std::fs::remove_dir_all(&dir).ok();
     }
 }
