@@ -338,12 +338,14 @@ mod tests {
     fn reveal_relative_path_works() {
         let dir = fixture("reveal-rel");
         let file = dir.join("b.md");
-        // 用相对路径 reveal：临时切 cwd。
+        // 用相对路径 reveal：临时切 cwd。先恢复 cwd 再断言，保证 panic 安全
+        // （app 测试经 App::new 读取 cwd，并行时会受影响）。
         let prev = std::env::current_dir().unwrap();
         std::env::set_current_dir(&dir).unwrap();
         let mut b = Browser::new(&dir.join("adir"));
-        b.reveal(Path::new("b.md")).unwrap();
+        let result = b.reveal(Path::new("b.md"));
         std::env::set_current_dir(prev).unwrap();
+        result.unwrap();
         assert_eq!(b.entries[b.selected].path(), file.as_path());
         std::fs::remove_dir_all(&dir).ok();
     }
