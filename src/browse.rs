@@ -87,6 +87,107 @@ fn list_drives() -> Vec<PathBuf> {
     vec![PathBuf::from("/")]
 }
 
+/// enter 的结果。
+pub enum EnterOutcome {
+    OpenFile(PathBuf),
+    Entered,
+    Failed(String),
+    Noop,
+}
+
+pub struct Browser {
+    pub loc: Loc,
+    pub entries: Vec<Entry>,
+    pub selected: usize,
+}
+
+impl Browser {
+    /// 从指定目录启动。
+    pub fn new(dir: &Path) -> Browser {
+        let loc = Loc::Dir(dir.to_path_buf());
+        let entries = load(&loc).unwrap_or_default();
+        Browser { loc, entries, selected: 0 }
+    }
+
+    /// 从当前工作目录启动。
+    pub fn from_cwd() -> Browser {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        Browser::new(&cwd)
+    }
+
+    /// 移动选中（clamp 在列表范围内）。
+    pub fn move_sel(&mut self, delta: isize) {
+        if self.entries.is_empty() {
+            return;
+        }
+        let last = self.entries.len() - 1;
+        let next = self.selected as isize + delta;
+        self.selected = next.clamp(0, last as isize) as usize;
+    }
+
+    /// 进入选中项：目录 → 重载；文件 → 返回路径交 App 打开。
+    pub fn enter(&mut self) -> EnterOutcome {
+        let Some(entry) = self.entries.get(self.selected).cloned() else {
+            return EnterOutcome::Noop;
+        };
+        match entry {
+            Entry::File(p) => EnterOutcome::OpenFile(p),
+            Entry::Dir(p) => match load(&Loc::Dir(p.clone())) {
+                Ok(entries) => {
+                    self.loc = Loc::Dir(p);
+                    self.entries = entries;
+                    self.selected = 0;
+                    EnterOutcome::Entered
+                }
+                Err(e) => EnterOutcome::Failed(format!("cannot read {}: {e}", p.display())),
+            },
+        }
+    }
+
+    /// 返回上级；Windows 盘符根再向上 → 驱动器列表；Drives 再向上无操作。
+    pub fn up(&mut self) -> Result<(), String> {
+        let Loc::Dir(cur) = &self.loc else { return Ok(()) };
+        let cur = cur.clone();
+        match cur.parent() {
+            Some(parent) => {
+                let loc = Loc::Dir(parent.to_path_buf());
+                let entries = load(&loc)
+                    .map_err(|e| format!("cannot read {}: {e}", parent.display()))?;
+                self.selected = entries.iter().position(|e| e.path() == cur).unwrap_or(0);
+                self.loc = loc;
+                self.entries = entries;
+                Ok(())
+            }
+            None => {
+                #[cfg(windows)]
+                {
+                    let entries = load(&Loc::Drives).map_err(|e| e.to_string())?;
+                    self.selected =
+                        entries.iter().position(|e| e.path() == cur).unwrap_or(0);
+                    self.loc = Loc::Drives;
+                    self.entries = entries;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// 刷新当前层，选中项按路径尽量保留。
+    pub fn refresh(&mut self) -> Result<(), String> {
+        let cur = self.entries.get(self.selected).map(|e| e.path().to_path_buf());
+        let entries = load(&self.loc).map_err(|e| match &self.loc {
+            Loc::Dir(p) => format!("cannot read {}: {e}", p.display()),
+            Loc::Drives => e.to_string(),
+        })?;
+        self.selected = match cur.and_then(|p| entries.iter().position(|e| e.path() == p)) {
+            Some(i) => i,
+            None => self.selected.min(entries.len().saturating_sub(1)),
+        };
+        self.entries = entries;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,6 +213,91 @@ mod tests {
         assert_eq!(names, vec!["adir", "zdir", "A.MD", "b.md"]);
         assert!(entries[0].is_dir() && entries[1].is_dir());
         assert!(!entries[2].is_dir() && !entries[3].is_dir());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn enter_dir_loads_it_and_enter_file_returns_path() {
+        let dir = fixture("enter");
+        let mut b = Browser::new(&dir);
+        // 选中 adir（目录优先排第一）。
+        match b.enter() {
+            EnterOutcome::Entered => {}
+            _ => panic!("expected Entered"),
+        }
+        assert_eq!(b.loc, Loc::Dir(dir.join("adir")));
+        assert!(b.entries.is_empty(), "adir 为空目录");
+        // 回到 fixture 根，enter 文件返回路径。
+        b.loc = Loc::Dir(dir.clone());
+        b.entries = load(&b.loc).unwrap();
+        b.selected = 2; // A.MD
+        match b.enter() {
+            EnterOutcome::OpenFile(p) => assert_eq!(p, dir.join("A.MD")),
+            _ => panic!("expected OpenFile"),
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn enter_unreadable_dir_fails_in_place() {
+        let dir = fixture("enter-fail");
+        let mut b = Browser::new(&dir);
+        b.entries = vec![Entry::Dir(dir.join("gone"))];
+        match b.enter() {
+            EnterOutcome::Failed(msg) => assert!(msg.contains("cannot read")),
+            _ => panic!("expected Failed"),
+        }
+        assert_eq!(b.loc, Loc::Dir(dir.clone()), "失败后停留原位");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn up_moves_to_parent_and_selects_child() {
+        let dir = fixture("up");
+        let mut b = Browser::new(&dir.join("zdir"));
+        b.up().unwrap();
+        assert_eq!(b.loc, Loc::Dir(dir.clone()));
+        assert_eq!(b.entries[b.selected].name(), "zdir", "返回后选中刚离开的目录");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn up_past_drive_root_shows_drives() {
+        let mut b = Browser {
+            loc: Loc::Dir(PathBuf::from("C:\\")),
+            entries: Vec::new(),
+            selected: 0,
+        };
+        b.up().unwrap();
+        assert_eq!(b.loc, Loc::Drives);
+        assert!(!b.entries.is_empty(), "至少存在 C:\\");
+        assert_eq!(b.entries[b.selected].path(), Path::new("C:\\"));
+        // Drives 层再向上：无操作。
+        b.up().unwrap();
+        assert_eq!(b.loc, Loc::Drives);
+    }
+
+    #[test]
+    fn refresh_preserves_selection_by_path() {
+        let dir = fixture("refresh");
+        let mut b = Browser::new(&dir);
+        b.selected = 3; // b.md
+        // 新增一个排前面的文件，b.md 顺位后移。
+        std::fs::write(dir.join("a0.md"), "x").unwrap();
+        b.refresh().unwrap();
+        assert_eq!(b.entries[b.selected].name(), "b.md");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn move_sel_clamps() {
+        let dir = fixture("clamp");
+        let mut b = Browser::new(&dir);
+        b.move_sel(-5);
+        assert_eq!(b.selected, 0);
+        b.move_sel(99);
+        assert_eq!(b.selected, b.entries.len() - 1);
         std::fs::remove_dir_all(&dir).ok();
     }
 }
