@@ -1,4 +1,4 @@
-//! mdview — terminal markdown renderer with a TUI file browser.
+//! mdview — terminal markdown renderer with a TUI sidebar file browser.
 
 mod app;
 mod browse;
@@ -22,7 +22,7 @@ use style::{ColorLevel, Scheme, DEFAULT_THEME};
 #[command(name = "mdview", version, about = "Terminal markdown renderer")]
 struct Cli {
     /// Markdown file to open directly. With no file, resumes the last opened
-    /// file (file browser on first run).
+    /// file (sidebar on first run).
     file: Option<PathBuf>,
 
     /// Theme name: a builtin scheme or `md-styles/<name>.css`.
