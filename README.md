@@ -30,7 +30,7 @@ cat a.md | mdview    # pipe mode
 
 Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--align <center|left>` · `--list-themes`
 
-Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align (reader) · `Enter` open · `Esc` back · `?` help · `q` quit
+Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align (reader) · `o` open / enter dir · `←/Bksp` parent dir · `Esc` back · `?` help · `q` quit
 
 ## Themes
 

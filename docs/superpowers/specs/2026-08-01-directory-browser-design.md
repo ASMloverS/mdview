@@ -92,7 +92,8 @@ pub struct Browser {
   ` drives `。
 - 条目：目录 `▸ name/`，文件纯名称，驱动器 `C:\` 形式；选中高亮不变。
 - 右栏预览：文件 → 现有渲染预览（不变）；目录 → 统计信息
-  （`N subdirs, M markdown files`）；`Loc::Drives` → 提示文本。
+  （两行：`N subdirectories`、`M markdown files`，单层统计不递归）；
+  `Loc::Drives` → 提示文本。
 - 空目录：`no markdown files or subdirectories here`。
 
 ## 提示修正（排查结论）
