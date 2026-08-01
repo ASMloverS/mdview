@@ -186,6 +186,39 @@ impl Browser {
         self.entries = entries;
         Ok(())
     }
+
+    /// 定位到文件所在目录并选中该文件；失败返回错误信息，浏览器不动。
+    pub fn reveal(&mut self, file: &Path) -> Result<(), String> {
+        let abs = absolutize(file);
+        let Some(parent) = abs.parent() else {
+            return Err(format!("cannot locate {}", file.display()));
+        };
+        let loc = Loc::Dir(parent.to_path_buf());
+        let entries =
+            load(&loc).map_err(|e| format!("cannot read {}: {e}", parent.display()))?;
+        self.selected = entries.iter().position(|e| e.path() == abs).unwrap_or(0);
+        self.loc = loc;
+        self.entries = entries;
+        Ok(())
+    }
+}
+
+/// 转绝对路径：相对路径基于 cwd 拼接（不用 canonicalize，避免 Windows UNC 前缀）。
+fn absolutize(p: &Path) -> PathBuf {
+    if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map(|c| c.join(p))
+            .unwrap_or_else(|_| p.to_path_buf())
+    }
+}
+
+/// 目录统计：(子目录数, md 文件数)，单层不递归；不可读返回 None。
+pub fn dir_stats(path: &Path) -> Option<(usize, usize)> {
+    let entries = load(&Loc::Dir(path.to_path_buf())).ok()?;
+    let dirs = entries.iter().filter(|e| e.is_dir()).count();
+    Some((dirs, entries.len() - dirs))
 }
 
 #[cfg(test)]
@@ -287,6 +320,50 @@ mod tests {
         std::fs::write(dir.join("a0.md"), "x").unwrap();
         b.refresh().unwrap();
         assert_eq!(b.entries[b.selected].name(), "b.md");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reveal_locates_file_dir_and_selects_it() {
+        let dir = fixture("reveal");
+        // 起点在别处：adir。
+        let mut b = Browser::new(&dir.join("adir"));
+        b.reveal(&dir.join("b.md")).unwrap();
+        assert_eq!(b.loc, Loc::Dir(dir.clone()));
+        assert_eq!(b.entries[b.selected].name(), "b.md");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reveal_relative_path_works() {
+        let dir = fixture("reveal-rel");
+        let file = dir.join("b.md");
+        // 用相对路径 reveal：临时切 cwd。
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+        let mut b = Browser::new(&dir.join("adir"));
+        b.reveal(Path::new("b.md")).unwrap();
+        std::env::set_current_dir(prev).unwrap();
+        assert_eq!(b.entries[b.selected].path(), file.as_path());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reveal_missing_parent_fails_in_place() {
+        let dir = fixture("reveal-fail");
+        let mut b = Browser::new(&dir);
+        let before = b.loc.clone();
+        assert!(b.reveal(&dir.join("gone").join("x.md")).is_err());
+        assert_eq!(b.loc, before, "失败后浏览器不动");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn dir_stats_counts_dirs_and_md_files() {
+        let dir = fixture("stats");
+        let (dirs, files) = dir_stats(&dir).unwrap();
+        assert_eq!((dirs, files), (2, 2), "adir/zdir 两个目录，A.MD/b.md 两个文件");
+        assert!(dir_stats(&dir.join("gone")).is_none());
         std::fs::remove_dir_all(&dir).ok();
     }
 
