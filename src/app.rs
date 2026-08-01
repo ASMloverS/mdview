@@ -892,13 +892,15 @@ mod tests {
     }
 
     #[test]
-    fn enter_and_l_are_unbound_in_browser() {
+    fn enter_l_right_h_unbound_in_browser() {
         let dir = temp_browser_dir("unbound");
         let mut app = test_app(10, 24);
         app.mode = Mode::Browser;
         app.browser = Browser::new(&dir);
         handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
         handle_key(&mut app, KeyEvent::from(KeyCode::Char('l')));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Right));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('h')));
         assert!(matches!(app.mode, Mode::Browser));
         assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
         std::fs::remove_dir_all(&dir).ok();
