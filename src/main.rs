@@ -1,8 +1,6 @@
 //! mdview — terminal markdown renderer with a TUI file browser.
 
 mod app;
-// 目录浏览器尚未接入 App，暂允许死代码。
-#[allow(dead_code)]
 mod browse;
 mod config;
 mod highlight;

@@ -117,15 +117,16 @@ pub fn centered_rect(percent_x: u16, lines: u16, area: Rect) -> Rect {
 fn draw_help(frame: &mut Frame, app: &App) {
     let keys = [
         ("j/k, ↓/↑", "move / scroll"),
-        ("Enter, l", "open file (browser)"),
-        ("Esc", "back to browser"),
+        ("o", "open file / enter dir (browser)"),
+        ("←, Bksp", "parent directory (browser)"),
+        ("Esc", "back (reader) / quit (browser)"),
         ("d/u, PgDn/PgUp", "half page down/up"),
         ("Ctrl+f/b", "page forward / back"),
         ("g/G", "top / bottom"),
         ("/, n/N", "search / next match"),
         ("t", "theme picker"),
         ("a", "toggle align (reader)"),
-        ("r", "rescan files (browser)"),
+        ("r", "refresh directory (browser)"),
         ("q", "quit"),
         ("?", "toggle this help"),
     ];

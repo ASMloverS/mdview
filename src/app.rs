@@ -1,5 +1,6 @@
 //! TUI application: state machine and event loop.
 
+use crate::browse::{Browser, EnterOutcome};
 use crate::config::{Config, ContentAlign};
 use crate::history::History;
 use crate::markdown::parse_document;
@@ -35,8 +36,7 @@ pub struct Reader {
 
 pub struct App {
     pub mode: Mode,
-    pub files: Vec<PathBuf>,
-    pub selected: usize,
+    pub browser: Browser,
     pub preview: Option<(PathBuf, u16, String, Rendered)>,
     pub reader: Option<Reader>,
     pub picker: Option<usize>,
@@ -66,8 +66,7 @@ impl App {
     ) -> App {
         App {
             mode: Mode::Browser,
-            files: scan_files(Path::new(".")),
-            selected: 0,
+            browser: Browser::from_cwd(),
             preview: None,
             reader: None,
             picker: None,
@@ -95,6 +94,10 @@ impl App {
     }
 
     pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {
+        // 浏览器同步定位到所打开的文件（best-effort）。
+        if let Err(msg) = self.browser.reveal(&path) {
+            self.status = Some(msg);
+        }
         let rendered = self.render_file(&path, width, offset);
         let mut reader = Reader {
             path,
@@ -202,38 +205,6 @@ impl App {
             follow_cursor(reader);
         }
     }
-}
-
-/// Recursively collect markdown files under `dir`, skipping hidden and
-/// build directories.
-pub fn scan_files(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    fn walk(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
-        if depth > 8 {
-            return;
-        }
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with('.') || name == "target" || name == "node_modules" {
-                continue;
-            }
-            if path.is_dir() {
-                walk(&path, depth + 1, out);
-            } else if name
-                .rsplit('.')
-                .next()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
-            {
-                out.push(path);
-            }
-        }
-    }
-    walk(dir, 0, &mut out);
-    out.sort();
-    out
 }
 
 pub fn run(
@@ -445,22 +416,27 @@ fn handle_key(app: &mut App, key: KeyEvent) {
 fn browser_key(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Char('q') | KeyCode::Esc => app.quit = true,
-        KeyCode::Char('j') | KeyCode::Down => {
-            if !app.files.is_empty() {
-                app.selected = (app.selected + 1).min(app.files.len() - 1);
-            }
-        }
-        KeyCode::Char('k') | KeyCode::Up => {
-            app.selected = app.selected.saturating_sub(1);
-        }
-        KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
-            if let Some(path) = app.files.get(app.selected).cloned() {
+        KeyCode::Char('j') | KeyCode::Down => app.browser.move_sel(1),
+        KeyCode::Char('k') | KeyCode::Up => app.browser.move_sel(-1),
+        KeyCode::Char('o') => match app.browser.enter() {
+            EnterOutcome::OpenFile(path) => {
                 app.preview = None;
                 app.open_reader(path, app.max_width as u16, 0);
             }
+            EnterOutcome::Failed(msg) => app.status = Some(msg),
+            EnterOutcome::Entered => app.preview = None,
+            EnterOutcome::Noop => {}
+        },
+        KeyCode::Left | KeyCode::Backspace => {
+            if let Err(msg) = app.browser.up() {
+                app.status = Some(msg);
+            }
+            app.preview = None;
         }
         KeyCode::Char('r') => {
-            app.files = scan_files(Path::new("."));
+            if let Err(msg) = app.browser.refresh() {
+                app.status = Some(msg);
+            }
             app.preview = None;
         }
         _ => {}
@@ -527,17 +503,11 @@ fn handle_mouse(app: &mut App, kind: MouseEventKind) {
     match kind {
         MouseEventKind::ScrollDown => match app.mode {
             Mode::Reader => scroll_reader(app, 3),
-            Mode::Browser => {
-                if !app.files.is_empty() {
-                    app.selected = (app.selected + 3).min(app.files.len() - 1);
-                }
-            }
+            Mode::Browser => app.browser.move_sel(3),
         },
         MouseEventKind::ScrollUp => match app.mode {
             Mode::Reader => scroll_reader(app, -3),
-            Mode::Browser => {
-                app.selected = app.selected.saturating_sub(3);
-            }
+            Mode::Browser => app.browser.move_sel(-3),
         },
         _ => {}
     }
@@ -546,6 +516,7 @@ fn handle_mouse(app: &mut App, kind: MouseEventKind) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::browse::{Browser, Loc};
     use crate::render::Rendered;
     use crate::style::{ColorLevel, Scheme};
 
@@ -884,5 +855,76 @@ mod tests {
         assert!(!app.resume_hint);
         let r = app.reader.as_ref().unwrap();
         assert_eq!(r.cursor, 0, "按键被弹窗拦截，不传给阅读器");
+    }
+
+    /// 造临时目录：sub/ 子目录 + a.md 文件，返回目录路径。
+    fn temp_browser_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("mdview-app-key-{}-{}", std::process::id(), tag));
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.md"), "hello").unwrap();
+        dir
+    }
+
+    #[test]
+    fn o_on_file_opens_reader() {
+        let dir = temp_browser_dir("open");
+        let mut app = test_app(10, 24);
+        app.mode = Mode::Browser;
+        app.browser = Browser::new(&dir);
+        app.browser.selected = 1; // a.md（目录优先，sub 在 0）
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
+        assert!(matches!(app.mode, Mode::Reader));
+        assert_eq!(app.reader.as_ref().unwrap().path, dir.join("a.md"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn o_on_dir_enters_it() {
+        let dir = temp_browser_dir("enter");
+        let mut app = test_app(10, 24);
+        app.mode = Mode::Browser;
+        app.browser = Browser::new(&dir);
+        app.browser.selected = 0; // sub
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('o')));
+        assert!(matches!(app.mode, Mode::Browser), "进目录不打开阅读器");
+        assert_eq!(app.browser.loc, Loc::Dir(dir.join("sub")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn enter_and_l_are_unbound_in_browser() {
+        let dir = temp_browser_dir("unbound");
+        let mut app = test_app(10, 24);
+        app.mode = Mode::Browser;
+        app.browser = Browser::new(&dir);
+        handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Char('l')));
+        assert!(matches!(app.mode, Mode::Browser));
+        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn left_and_backspace_go_up() {
+        let dir = temp_browser_dir("up");
+        let mut app = test_app(10, 24);
+        app.mode = Mode::Browser;
+        app.browser = Browser::new(&dir.join("sub"));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Left));
+        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        app.browser = Browser::new(&dir.join("sub"));
+        handle_key(&mut app, KeyEvent::from(KeyCode::Backspace));
+        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn open_reader_reveals_file_in_browser() {
+        let (dir, file) = temp_doc("reveal-open", 5);
+        let mut app = test_app(10, 24);
+        app.open_reader(file.clone(), 80, 0);
+        assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        assert_eq!(app.browser.entries[app.browser.selected].path(), file.as_path());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
