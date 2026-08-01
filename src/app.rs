@@ -903,6 +903,7 @@ mod tests {
         handle_key(&mut app, KeyEvent::from(KeyCode::Char('h')));
         assert!(matches!(app.mode, Mode::Browser));
         assert_eq!(app.browser.loc, Loc::Dir(dir.clone()));
+        assert_eq!(app.browser.selected, 0, "未绑定键不得移动选中");
         std::fs::remove_dir_all(&dir).ok();
     }
 
