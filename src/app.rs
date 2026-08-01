@@ -471,6 +471,8 @@ fn sidebar_key(app: &mut App, key: KeyEvent) {
             let outcome = app.sidebar.as_mut().map(|s| s.browser.enter());
             match outcome {
                 Some(EnterOutcome::OpenFile(path)) => {
+                    // 换文件前记录当前文件的阅读位置。
+                    save_position(app);
                     app.open_reader(path, app.max_width as u16, 0);
                     app.sidebar = None;
                 }
@@ -917,6 +919,29 @@ mod tests {
         handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
         assert!(app.sidebar.is_none(), "打开文件后侧栏关闭");
         assert_eq!(app.reader.as_ref().unwrap().path, dir.join("a.md"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn switching_files_via_sidebar_saves_position() {
+        let (dir, file_a) = temp_doc("switch-save", 40);
+        let hist_path = dir.join("history.toml");
+        let mut app = test_app(10, 24);
+        app.history_size = 200;
+        app.history = History::load_from(&hist_path);
+        app.open_reader(file_a.clone(), 80, 0);
+        app.reader.as_mut().unwrap().cursor = 7;
+        // 侧栏打开另一个文件 b.md。
+        let file_b = dir.join("b.md");
+        std::fs::write(&file_b, "b").unwrap();
+        app.sidebar = Some(Sidebar { browser: Browser::new(&dir), focus: Focus::Sidebar });
+        let idx = app.sidebar.as_ref().unwrap().browser.entries.iter()
+            .position(|e| e.path() == file_b).unwrap();
+        app.sidebar.as_mut().unwrap().browser.selected = idx;
+        handle_key(&mut app, KeyEvent::from(KeyCode::Enter));
+        let h = History::load_from(&hist_path);
+        assert_eq!(h.get(&file_a), Some(7), "换文件前已记录 A 的阅读位置");
+        assert_eq!(app.reader.as_ref().unwrap().path, file_b);
         std::fs::remove_dir_all(&dir).ok();
     }
 
