@@ -63,6 +63,8 @@ cat a.md | mdview     # 管道模式，渲染到 stdout
 
 CSS 子集支持：元素与后代选择器（`pre code`）；属性 `color`、`background`/`background-color`、`border-color`、`font-weight`、`font-style`、`text-decoration`；颜色支持 `#rgb`/`#rrggbb`/`rgb(r,g,b)`/命名色。语法高亮用 `syntax-keyword`、`syntax-string`、`syntax-comment`、`syntax-function`、`syntax-type`、`syntax-number`、`syntax-operator` 七个类。参考 `assets/styles/` 下的内置主题。
 
+完整教程：[编写自定义主题](docs/custom-themes.zh-CN.md)。
+
 ## 配置
 
 `config.toml`（可执行文件旁），全部可选：

@@ -38,6 +38,8 @@ Builtins: `tokyo-night`, `dracula`, `gruvbox-dark` (default), `gruvbox-light`, `
 
 Custom: write `md-styles/<name>.css` next to the executable (lookup: exe-adjacent `md-styles/` → builtins; same name overrides a builtin). Supported CSS subset: element/descendant selectors; `color`, `background(-color)`, `border-color`, `font-weight`, `font-style`, `text-decoration`; `syntax-keyword|string|comment|function|type|number|operator` classes for highlighting. See `assets/styles/` for examples.
 
+Full guide: [Writing Custom Themes](docs/custom-themes.md).
+
 ## Config
 
 `config.toml` (next to the executable, all optional):
