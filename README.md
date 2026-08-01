@@ -30,7 +30,7 @@ cat a.md | mdview    # pipe mode
 
 Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--align <center|left>` · `--list-themes`
 
-Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align (reader) · `o` open / enter dir · `←/Bksp` parent dir · `Esc` back · `?` help · `q` quit
+Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align · `o` sidebar · `Tab` focus · `Enter` open / enter dir (sidebar) · `Bksp` parent dir · `?` help · `q` quit
 
 ## Themes
 
@@ -50,6 +50,7 @@ max_width = 100
 mouse = true
 align = "center"        # or "left"; written automatically on 'a' toggle
 history_size = 200      # remember cursor line per file (history.toml; 0 disables)
+sidebar_width = 30      # sidebar width in columns (clamped to 10-60)
 ```
 
 Priority: CLI flags > config.toml > builtin defaults (flags are one-shot, never persisted).
