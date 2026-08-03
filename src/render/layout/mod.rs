@@ -7,14 +7,14 @@ mod text;
 use super::{plain_of, Rendered, SLine, SSpan};
 use crate::highlight::Highlighter;
 use crate::markdown::{Block, Document};
-use crate::style::{Computed, Scheme};
+use crate::style::{Computed, Scheme, SyntaxTheme};
 use unicode_width::UnicodeWidthChar;
 
 const MAX_CELL_WIDTH: usize = 32;
 
 pub struct Renderer<'a> {
     scheme: &'a Scheme,
-    highlighter: Highlighter,
+    highlighter: Highlighter<'a>,
     width: usize,
     out: Vec<SLine>,
     cur: SLine,
@@ -29,10 +29,16 @@ struct Seg {
     link: Option<String>,
 }
 
-pub fn render_document(doc: &Document, scheme: &Scheme, width: usize, offset: usize) -> Rendered {
+pub fn render_document(
+    doc: &Document,
+    scheme: &Scheme,
+    syntax_theme: &SyntaxTheme,
+    width: usize,
+    offset: usize,
+) -> Rendered {
     let mut r = Renderer {
         scheme,
-        highlighter: Highlighter::new(scheme),
+        highlighter: Highlighter::new(scheme, syntax_theme),
         width: width.max(20),
         out: Vec::new(),
         cur: Vec::new(),
@@ -257,7 +263,8 @@ mod tests {
     fn render_off(src: &str, width: usize, offset: usize) -> Vec<String> {
         let doc = parse_document(src);
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        render_document(&doc, &scheme, width, offset).plain
+        let syntax = SyntaxTheme::load(&scheme.name);
+        render_document(&doc, &scheme, &syntax, width, offset).plain
     }
 
     #[test]
@@ -339,7 +346,8 @@ mod tests {
     fn code_block_bg_fills_line() {
         let doc = parse_document("```\nhi\n```");
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let r = render_document(&doc, &scheme, 40, 0);
+        let syntax = SyntaxTheme::load(&scheme.name);
+        let r = render_document(&doc, &scheme, &syntax, 40, 0);
         let pre_bg = scheme.style_for(&["body", "pre"]).bg;
         assert!(pre_bg.is_some());
         let line = r
@@ -354,7 +362,8 @@ mod tests {
     fn code_block_rows_full_width() {
         let doc = parse_document("```\nfn main() {}\nlet x = 1;\n```");
         let scheme = Scheme::load(crate::style::DEFAULT_THEME);
-        let r = render_document(&doc, &scheme, 40, 0);
+        let syntax = SyntaxTheme::load(&scheme.name);
+        let r = render_document(&doc, &scheme, &syntax, 40, 0);
         let rows: Vec<_> = r
             .lines
             .iter()
@@ -395,7 +404,8 @@ mod tests {
                 "blockquote { background: #112233; border-color: #445566 }",
             ),
         };
-        let r = render_document(&doc, &scheme, 40, 0);
+        let syntax = SyntaxTheme::load(&scheme.name);
+        let r = render_document(&doc, &scheme, &syntax, 40, 0);
         let line = r
             .lines
             .iter()
@@ -419,7 +429,8 @@ mod tests {
                 "blockquote { background: #112233 } code { background: #445566 }",
             ),
         };
-        let r = render_document(&doc, &scheme, 40, 0);
+        let syntax = SyntaxTheme::load(&scheme.name);
+        let r = render_document(&doc, &scheme, &syntax, 40, 0);
         let line = r
             .lines
             .iter()
@@ -430,5 +441,26 @@ mod tests {
             .find(|s| s.text.contains("code"))
             .expect("code span");
         assert_eq!(code_span.style.bg, Some(crate::style::Rgb(0x44, 0x55, 0x66)));
+    }
+
+    #[test]
+    fn code_block_comment_is_italic_via_page_fallback() {
+        let doc = parse_document("```rust\n// hi\n```");
+        let scheme = Scheme {
+            name: "t".into(),
+            rules: crate::style::css::parse(
+                "pre { color: #111111; background: #222222 } syntax-comment { color: #333333; font-style: italic }",
+            ),
+        };
+        let syntax = SyntaxTheme::from_css("t", "");
+        let r = render_document(&doc, &scheme, &syntax, 40, 0);
+        let line = r
+            .lines
+            .iter()
+            .find(|l| plain_of(l).contains("hi"))
+            .expect("code line");
+        let span = line.iter().find(|s| s.text.contains("hi")).expect("comment span");
+        assert!(span.style.italic, "comment italic reaches the span");
+        assert_eq!(span.style.fg, Some(crate::style::Rgb(0x33, 0x33, 0x33)));
     }
 }

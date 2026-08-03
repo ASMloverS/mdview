@@ -170,6 +170,8 @@ impl Scheme {
     }
 
     /// Syntax highlighting palette from the `syntax-*` rules.
+    /// （仅完整性测试使用；高亮回退走 SyntaxTheme::resolve。）
+    #[cfg(test)]
     pub fn syntax_color(&self, class: &str) -> Option<Rgb> {
         self.style_for(&["body", &format!("syntax-{class}")]).fg
     }

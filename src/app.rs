@@ -6,7 +6,7 @@ use crate::history::History;
 use crate::markdown::parse_document;
 use crate::render::layout::render_document;
 use crate::render::Rendered;
-use crate::style::{ColorLevel, Scheme};
+use crate::style::{ColorLevel, Scheme, SyntaxTheme};
 use anyhow::Result;
 use crossterm::event::{
     self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEventKind,
@@ -95,7 +95,7 @@ impl App {
     pub fn render_file(&self, path: &Path, width: u16, offset: u16) -> Rendered {
         let text = std::fs::read_to_string(path).unwrap_or_else(|e| format!("(error: {e})"));
         let doc = parse_document(&text);
-        render_document(&doc, &self.scheme, width as usize, offset as usize)
+        render_document(&doc, &self.scheme, &SyntaxTheme::load(&self.scheme.name), width as usize, offset as usize)
     }
 
     pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {

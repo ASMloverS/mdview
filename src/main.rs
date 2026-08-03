@@ -16,7 +16,7 @@ use clap::Parser;
 use config::{Config, ContentAlign};
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
-use style::{ColorLevel, Scheme, DEFAULT_THEME};
+use style::{ColorLevel, Scheme, SyntaxTheme, DEFAULT_THEME};
 
 #[derive(Parser)]
 #[command(name = "mdview", version, about = "Terminal markdown renderer")]
@@ -75,7 +75,13 @@ fn main() -> Result<()> {
         let term = terminal_width();
         let width = term.min(max_width);
         let offset = app::content_offset(term as u16, width as u16, align) as usize;
-        let rendered = render::layout::render_document(&doc, &scheme, width, offset);
+        let rendered = render::layout::render_document(
+            &doc,
+            &scheme,
+            &SyntaxTheme::load(&theme_name),
+            width,
+            offset,
+        );
         print!("{}", render::ansi::render_ansi(&rendered.lines, level));
         return Ok(());
     }
