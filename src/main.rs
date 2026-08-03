@@ -40,6 +40,14 @@ struct Cli {
     /// List all available themes and exit.
     #[arg(long)]
     list_themes: bool,
+
+    /// Syntax theme name: a builtin or `syntax-styles/<name>.css`.
+    #[arg(long)]
+    syntax_theme: Option<String>,
+
+    /// List all available syntax themes and exit.
+    #[arg(long)]
+    list_syntax_themes: bool,
 }
 
 fn main() -> Result<()> {
@@ -52,6 +60,13 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.list_syntax_themes {
+        for name in SyntaxTheme::available() {
+            println!("{name}");
+        }
+        return Ok(());
+    }
+
     let cfg = Config::load();
     let sidebar_width = cfg.sidebar_width();
     let theme_name = cli
@@ -59,6 +74,8 @@ fn main() -> Result<()> {
         .or(cfg.theme)
         .unwrap_or_else(|| DEFAULT_THEME.to_string());
     let scheme = Scheme::load(&theme_name);
+    let syntax_override = cli.syntax_theme.or(cfg.syntax_theme);
+    let syntax_theme = SyntaxTheme::load(syntax_override.as_deref().unwrap_or(&theme_name));
     let level = ColorLevel::detect();
     let max_width = cli.max_width.or(cfg.max_width).unwrap_or(100);
     let align = cli
@@ -78,7 +95,7 @@ fn main() -> Result<()> {
         let rendered = render::layout::render_document(
             &doc,
             &scheme,
-            &SyntaxTheme::load(&theme_name),
+            &syntax_theme,
             width,
             offset,
         );
@@ -96,6 +113,7 @@ fn main() -> Result<()> {
         align,
         history_size,
         sidebar_width,
+        syntax_override,
     )
 }
 

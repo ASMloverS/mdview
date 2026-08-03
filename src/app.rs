@@ -51,6 +51,9 @@ pub struct App {
     pub search_query: String,
     pub search_matches: Vec<usize>,
     pub scheme: Scheme,
+    pub syntax_theme: SyntaxTheme,
+    /// CLI/config 固定的语法主题；None 时跟随页面主题。
+    pub syntax_override: Option<String>,
     pub level: ColorLevel,
     pub max_width: usize,
     pub align: ContentAlign,
@@ -71,6 +74,7 @@ impl App {
         history_size: usize,
         sidebar_width: u16,
     ) -> App {
+        let syntax_theme = SyntaxTheme::load(&scheme.name);
         App {
             reader: None,
             sidebar: None,
@@ -80,6 +84,8 @@ impl App {
             search_query: String::new(),
             search_matches: Vec::new(),
             scheme,
+            syntax_theme,
+            syntax_override: None,
             level,
             max_width,
             align,
@@ -95,7 +101,7 @@ impl App {
     pub fn render_file(&self, path: &Path, width: u16, offset: u16) -> Rendered {
         let text = std::fs::read_to_string(path).unwrap_or_else(|e| format!("(error: {e})"));
         let doc = parse_document(&text);
-        render_document(&doc, &self.scheme, &SyntaxTheme::load(&self.scheme.name), width as usize, offset as usize)
+        render_document(&doc, &self.scheme, &self.syntax_theme, width as usize, offset as usize)
     }
 
     pub fn open_reader(&mut self, path: PathBuf, width: u16, offset: u16) {
@@ -193,6 +199,9 @@ impl App {
 
     pub fn apply_scheme(&mut self, name: &str) {
         self.scheme = Scheme::load(name);
+        // 语法主题：有 override 固定用它，否则跟随页面主题。
+        self.syntax_theme =
+            SyntaxTheme::load(self.syntax_override.as_deref().unwrap_or(&self.scheme.name));
         self.reload_reader();
         self.status = Some(format!("theme: {}", self.scheme.name));
     }
@@ -254,6 +263,7 @@ pub fn run(
     align: ContentAlign,
     history_size: usize,
     sidebar_width: u16,
+    syntax_override: Option<String>,
 ) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -274,6 +284,7 @@ pub fn run(
         align,
         history_size,
         sidebar_width,
+        syntax_override,
     );
 
     disable_raw_mode()?;
@@ -299,8 +310,13 @@ fn event_loop(
     align: ContentAlign,
     history_size: usize,
     sidebar_width: u16,
+    syntax_override: Option<String>,
 ) -> Result<()> {
     let mut app = App::new(scheme, level, max_width, align, history_size, sidebar_width);
+    if let Some(name) = syntax_override {
+        app.syntax_theme = SyntaxTheme::load(&name);
+        app.syntax_override = Some(name);
+    }
     let term_w = terminal.size()?.width;
     let width = content_width(term_w, max_width);
     let offset = content_offset(term_w.saturating_sub(2), width, app.align);
@@ -594,6 +610,17 @@ mod tests {
 
     fn ctrl(key: char) -> KeyEvent {
         KeyEvent::new(KeyCode::Char(key), KeyModifiers::CONTROL)
+    }
+
+    #[test]
+    fn syntax_theme_follows_page_theme_unless_overridden() {
+        let mut app = test_app(1, 10);
+        assert_eq!(app.syntax_theme.name, crate::style::DEFAULT_THEME);
+        app.apply_scheme("nord");
+        assert_eq!(app.syntax_theme.name, "nord", "无 override 时跟随页面主题");
+        app.syntax_override = Some("gruvbox-dark".to_string());
+        app.apply_scheme("dracula");
+        assert_eq!(app.syntax_theme.name, "gruvbox-dark", "有 override 时固定");
     }
 
     #[test]
