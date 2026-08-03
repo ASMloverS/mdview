@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: rose-pine-dawn (from md-styles/rose-pine-dawn.css) */
+keyword { color: #907aa9; }
+string { color: #ea9d34; }
+comment { color: #9893a5; font-style: italic; }
+function { color: #d7827e; }
+type { color: #56949f; }
+number { color: #b4637a; }
+operator { color: #797593; }
+variable { color: #464261; }
+constant { color: #b4637a; }
+macro { color: #d7827e; }
+attribute { color: #56949f; }
+decorator { color: #d7827e; }
+module { color: #56949f; }
+namespace { color: #56949f; }
+punctuation { color: #797593; }
+label { color: #907aa9; }

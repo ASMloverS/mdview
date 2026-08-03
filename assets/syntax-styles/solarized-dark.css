@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: solarized-dark (from md-styles/solarized-dark.css) */
+keyword { color: #859900; }
+string { color: #2aa198; }
+comment { color: #586e75; font-style: italic; }
+function { color: #268bd2; }
+type { color: #b58900; }
+number { color: #d33682; }
+operator { color: #839496; }
+variable { color: #839496; }
+constant { color: #d33682; }
+macro { color: #268bd2; }
+attribute { color: #b58900; }
+decorator { color: #268bd2; }
+module { color: #b58900; }
+namespace { color: #b58900; }
+punctuation { color: #839496; }
+label { color: #859900; }

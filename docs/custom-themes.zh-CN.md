@@ -8,6 +8,7 @@ mdview 的主题就是一个 CSS 文件，用的是刻意精简的 CSS 子集—
 
 - [快速上手](#快速上手)
 - [主题的加载与启用](#主题的加载与启用)
+- [语法高亮主题（syntax-styles）](#语法高亮主题syntax-styles)
 - [选择器](#选择器)
 - [属性](#属性)
 - [颜色](#颜色)
@@ -48,6 +49,26 @@ mdview 的主题就是一个 CSS 文件，用的是刻意精简的 CSS 子集—
 3. 内置默认 `gruvbox-dark`
 
 **发现主题**:`mdview --list-themes` 列出全部可用主题（内置 + `md-styles/` 里的所有 `.css`，去重排序）。程序内的主题选择器（按 `t`）会把自定义主题和内置主题一起列出，关闭时把选中的主题写回 `config.toml`。
+
+## 语法高亮主题（syntax-styles）
+
+代码块的语法高亮配色独立于页面主题，由 exe 同级 `syntax-styles/<name>.css` 定义；内置 20 套与页面主题同名的语法主题。`syntax-styles/` 中与内置语法主题同名的文件会**整体覆盖**该内置语法主题。通过 `config.toml` 的 `syntax_theme` 键或 `--syntax-theme` 参数选择；未设置时自动跟随页面主题的同名语法主题。`--list-syntax-themes` 列出全部可用语法主题。
+
+CSS 语法与页面主题同一子集，选择器为 16 个 token 类别，可用语言名作祖先选择器做 per-language 特化：
+
+```css
+keyword { color: #fb4934; font-weight: bold; }
+comment { color: #928374; font-style: italic; }
+rust macro { color: #fe8019; }      /* 只对 rust 生效 */
+```
+
+类别：keyword / string / comment / function / type / number / operator / variable / constant / macro / attribute / decorator / module / namespace / punctuation / label。
+
+支持属性：`color`、`font-weight`、`font-style`、`text-decoration: underline`（`background` 与 `line-through` 对代码 token 无效）。
+
+逐类别回退顺序：语言特化规则 > 全局类别规则 > 页面主题 `syntax-*` 规则 > 别名派生 > 代码块默认前景。别名：constant→number、macro/decorator→function、attribute/module/namespace→type、punctuation→operator、label→keyword、variable→默认前景。
+
+语言名同时匹配代码块 info string 原文（小写）与规范语言名——```` ```rs ```` 也能命中 `rust` 规则。`bin/syntax-styles/example.css` 是带注释的完整模板。
 
 ## 选择器
 

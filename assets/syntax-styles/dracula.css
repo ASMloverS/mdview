@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: dracula (from md-styles/dracula.css) */
+keyword { color: #ff79c6; }
+string { color: #f1fa8c; }
+comment { color: #6272a4; font-style: italic; }
+function { color: #50fa7b; }
+type { color: #8be9fd; }
+number { color: #bd93f9; }
+operator { color: #ff79c6; }
+variable { color: #f8f8f2; }
+constant { color: #bd93f9; }
+macro { color: #50fa7b; }
+attribute { color: #8be9fd; }
+decorator { color: #50fa7b; }
+module { color: #8be9fd; }
+namespace { color: #8be9fd; }
+punctuation { color: #ff79c6; }
+label { color: #ff79c6; }

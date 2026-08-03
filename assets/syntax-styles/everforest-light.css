@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: everforest-light (from md-styles/everforest-light.css) */
+keyword { color: #f85552; }
+string { color: #8da101; }
+comment { color: #939f91; font-style: italic; }
+function { color: #8da101; }
+type { color: #dfa000; }
+number { color: #df69ba; }
+operator { color: #f57d26; }
+variable { color: #5c6a72; }
+constant { color: #df69ba; }
+macro { color: #8da101; }
+attribute { color: #dfa000; }
+decorator { color: #8da101; }
+module { color: #dfa000; }
+namespace { color: #dfa000; }
+punctuation { color: #f57d26; }
+label { color: #f85552; }

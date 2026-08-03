@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: kanagawa (from md-styles/kanagawa.css) */
+keyword { color: #957fb8; }
+string { color: #98bb6c; }
+comment { color: #727169; font-style: italic; }
+function { color: #7e9cd8; }
+type { color: #7aa89f; }
+number { color: #d27e99; }
+operator { color: #c0a36e; }
+variable { color: #dcd7ba; }
+constant { color: #d27e99; }
+macro { color: #7e9cd8; }
+attribute { color: #7aa89f; }
+decorator { color: #7e9cd8; }
+module { color: #7aa89f; }
+namespace { color: #7aa89f; }
+punctuation { color: #c0a36e; }
+label { color: #957fb8; }

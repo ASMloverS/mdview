@@ -8,6 +8,7 @@ mdview themes are plain CSS files written in a deliberately small CSS subset —
 
 - [Quick Start](#quick-start)
 - [Loading and Enabling Themes](#loading-and-enabling-themes)
+- [Syntax Highlighting Themes (syntax-styles)](#syntax-highlighting-themes-syntax-styles)
 - [Selectors](#selectors)
 - [Properties](#properties)
 - [Colors](#colors)
@@ -48,6 +49,26 @@ A file in `md-styles/` with the same name as a builtin **overrides** that builti
 3. Builtin default `gruvbox-dark`
 
 **Discovery**: `mdview --list-themes` prints all available themes (builtins plus every `.css` in `md-styles/`, deduplicated and sorted). The in-app theme picker (`t` key) lists custom themes alongside builtins and writes your choice back to `config.toml` when it closes.
+
+## Syntax Highlighting Themes (syntax-styles)
+
+Code-block syntax highlighting colors are independent of the page theme. They are defined by `syntax-styles/<name>.css` next to the executable; 20 builtin syntax themes ship under the same names as the page themes. A file in `syntax-styles/` with the same name as a builtin **overrides** that builtin entirely. Select one with the `syntax_theme` key in `config.toml` or the `--syntax-theme` flag; when unset, it automatically follows the page theme's namesake syntax theme. `--list-syntax-themes` lists every available syntax theme.
+
+The CSS syntax is the same subset as page themes. Selectors are the 16 token classes, and a language name can be used as an ancestor selector for per-language specialization:
+
+```css
+keyword { color: #fb4934; font-weight: bold; }
+comment { color: #928374; font-style: italic; }
+rust macro { color: #fe8019; }      /* applies to rust only */
+```
+
+Classes: keyword / string / comment / function / type / number / operator / variable / constant / macro / attribute / decorator / module / namespace / punctuation / label.
+
+Supported properties: `color`, `font-weight`, `font-style`, `text-decoration: underline` (`background` and `line-through` have no effect on code tokens).
+
+Per-class fallback order: language-specific rule > global class rule > page theme `syntax-*` rule > alias derivation > code-block default foreground. Aliases: constant→number, macro/decorator→function, attribute/module/namespace→type, punctuation→operator, label→keyword, variable→default foreground.
+
+Language names match both the code fence's info string verbatim (lowercased) and the canonical language name — so ```` ```rs ```` also hits `rust` rules. `bin/syntax-styles/example.css` is a fully annotated template.
 
 ## Selectors
 

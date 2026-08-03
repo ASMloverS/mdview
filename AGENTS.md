@@ -29,6 +29,8 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
 - `src/render/ansi.rs` — one-shot ANSI output
 - `src/style/` — CSS subset parser (`css.rs`), scheme registry (`scheme.rs`),
   colors (`color.rs`)
+- `src/style/syntax.rs` — syntax theme registry (`syntax-styles/*.css`, 16 token
+  classes)
 - `src/history.rs` — per-file cursor position history (LRU, exe-adjacent `history.toml`)
 - `src/browse.rs` — directory browser logic (single-level load, sorting/filtering,
   navigation, Windows drive list)
@@ -44,6 +46,11 @@ Terminal markdown renderer in Rust. Glow-style TUI, VS Code-style rendering.
   `md-styles/*.css` next to the executable (lookup: exe-adjacent →
   builtin). CSS subset: element/descendant selectors,
   color/background/border/font properties only.
+- Syntax themes: builtins in `assets/syntax-styles/*.css` (paired 1:1 with
+  page themes); user themes in `syntax-styles/` next to the exe (lookup:
+  exe-adjacent → builtin). Selected via `syntax_theme` in `config.toml` or
+  `--syntax-theme`; unset → follows the page theme's name; per-class
+  fallback to the page theme's `syntax-*` rules, then alias derivation.
 - Default theme: `gruvbox-dark`. Config: `config.toml` next to the
   executable (theme persisted on picker close, `align` persisted on
   reader `a` toggle; preserve other keys when writing). Reading

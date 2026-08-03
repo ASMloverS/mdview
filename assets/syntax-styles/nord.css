@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: nord (from md-styles/nord.css) */
+keyword { color: #81a1c1; }
+string { color: #a3be8c; }
+comment { color: #4c566a; font-style: italic; }
+function { color: #88c0d0; }
+type { color: #8fbcbb; }
+number { color: #b48ead; }
+operator { color: #81a1c1; }
+variable { color: #d8dee9; }
+constant { color: #b48ead; }
+macro { color: #88c0d0; }
+attribute { color: #8fbcbb; }
+decorator { color: #88c0d0; }
+module { color: #8fbcbb; }
+namespace { color: #8fbcbb; }
+punctuation { color: #81a1c1; }
+label { color: #81a1c1; }

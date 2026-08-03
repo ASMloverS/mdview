@@ -28,13 +28,16 @@ impl<'a> Renderer<'a> {
                 gutter_style,
             )];
             let mut col = 0;
-            for (color, text) in runs {
-                col += text_width(text);
+            for span in runs {
+                col += text_width(&span.text);
                 line.push(SSpan::new(
-                    text.clone(),
+                    span.text.clone(),
                     Computed {
-                        fg: Some(*color),
+                        fg: Some(span.fg),
                         bg: pre.bg,
+                        bold: span.bold,
+                        italic: span.italic,
+                        underline: span.underline,
                         ..Computed::default()
                     },
                 ));

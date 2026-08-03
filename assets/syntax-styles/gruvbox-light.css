@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: gruvbox-light (from md-styles/gruvbox-light.css) */
+keyword { color: #9d0006; }
+string { color: #79740e; }
+comment { color: #928374; font-style: italic; }
+function { color: #79740e; }
+type { color: #b57614; }
+number { color: #8f3f71; }
+operator { color: #427b58; }
+variable { color: #3c3836; }
+constant { color: #8f3f71; }
+macro { color: #79740e; }
+attribute { color: #b57614; }
+decorator { color: #79740e; }
+module { color: #b57614; }
+namespace { color: #b57614; }
+punctuation { color: #427b58; }
+label { color: #9d0006; }

@@ -1,0 +1,17 @@
+/* mdview builtin syntax theme: catppuccin-mocha (from md-styles/catppuccin-mocha.css) */
+keyword { color: #cba6f7; }
+string { color: #a6e3a1; }
+comment { color: #9399b2; font-style: italic; }
+function { color: #89b4fa; }
+type { color: #f9e2af; }
+number { color: #fab387; }
+operator { color: #89dceb; }
+variable { color: #cdd6f4; }
+constant { color: #fab387; }
+macro { color: #89b4fa; }
+attribute { color: #f9e2af; }
+decorator { color: #89b4fa; }
+module { color: #f9e2af; }
+namespace { color: #f9e2af; }
+punctuation { color: #89dceb; }
+label { color: #cba6f7; }

@@ -38,6 +38,8 @@ pub const DEFAULT_SIDEBAR_WIDTH: u16 = 30;
 pub struct Config {
     /// Theme name: builtin or `md-styles/<name>.css`.
     pub theme: Option<String>,
+    /// Syntax theme name: builtin or `syntax-styles/<name>.css`.
+    pub syntax_theme: Option<String>,
     /// Max content width in columns.
     pub max_width: Option<usize>,
     /// Enable mouse capture in the TUI.
@@ -189,6 +191,14 @@ mod tests {
         assert_eq!(ContentAlign::Left.toggle(), ContentAlign::Center);
         assert_eq!(ContentAlign::Center.as_str(), "center");
         assert_eq!(ContentAlign::Left.as_str(), "left");
+    }
+
+    #[test]
+    fn parses_syntax_theme() {
+        let cfg: Config = toml::from_str("syntax_theme = \"nord\"\n").unwrap();
+        assert_eq!(cfg.syntax_theme.as_deref(), Some("nord"));
+        let cfg: Config = toml::from_str("").unwrap();
+        assert_eq!(cfg.syntax_theme, None);
     }
 
     #[test]
