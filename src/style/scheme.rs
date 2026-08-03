@@ -50,14 +50,18 @@ const BUILTINS: &[(&str, &str)] = &[
 
 pub const DEFAULT_THEME: &str = "gruvbox-dark";
 
+/// exe 所在目录（定位失败时为空路径）。
+pub(crate) fn exe_dir() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_default()
+}
+
 /// User CSS theme directory: `md-styles` next to the executable
 /// (cwd-relative fallback when the exe location is unavailable).
 fn style_dirs() -> Vec<PathBuf> {
-    let dir = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_default();
-    vec![dir.join("md-styles")]
+    vec![exe_dir().join("md-styles")]
 }
 
 /// Load `<name>.css` from the first directory that contains it.
@@ -169,6 +173,14 @@ impl Scheme {
     pub fn syntax_color(&self, class: &str) -> Option<Rgb> {
         self.style_for(&["body", &format!("syntax-{class}")]).fg
     }
+
+    /// 页面主题是否定义了 `syntax-<class>` 规则（区别于 style_for 的默认前景）。
+    pub fn has_syntax_rule(&self, class: &str) -> bool {
+        let leaf = format!("syntax-{class}");
+        self.rules
+            .iter()
+            .any(|r| r.selectors.iter().any(|sel| sel.last().is_some_and(|t| *t == leaf)))
+    }
 }
 
 fn apply(props: &Props, c: &mut Computed) {
@@ -197,7 +209,7 @@ fn apply(props: &Props, c: &mut Computed) {
 
 /// A selector matches when its last element equals the leaf and the
 /// remaining parts appear, in order, among the ancestors.
-fn selector_matches(sel: &[String], chain: &[&str]) -> bool {
+pub(crate) fn selector_matches(sel: &[String], chain: &[&str]) -> bool {
     if sel.is_empty() || chain.is_empty() {
         return false;
     }
