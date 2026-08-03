@@ -28,7 +28,7 @@ mdview README.md     # open a file
 cat a.md | mdview    # pipe mode
 ```
 
-Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--align <center|left>` · `--list-themes`
+Options: `-t, --theme <name>` · `-w, --max-width <cols>` (default 100) · `--align <center|left>` · `--list-themes` · `--syntax-theme <name>` · `--list-syntax-themes`
 
 Keys: `j/k` scroll · `d/u` half page · `Ctrl+f/b` full page · `g/G` top/bottom · `/` `n/N` search · `t` themes · `a` align · `o` sidebar · `Tab` focus · `Enter` open / enter dir (sidebar) · `Bksp` parent dir · `r` refresh (sidebar) · `Esc` close sidebar · `?` help · `q` quit
 

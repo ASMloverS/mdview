@@ -36,7 +36,7 @@ mdview --list-themes  # 列出所有可用主题
 cat a.md | mdview     # 管道模式，渲染到 stdout
 ```
 
-选项：`-t, --theme <名称>`、`-w, --max-width <列数>`（默认 100）、`--align <center|left>`、`--list-themes`。
+选项：`-t, --theme <名称>`、`-w, --max-width <列数>`（默认 100）、`--align <center|left>`、`--list-themes`、`--syntax-theme <名称>`、`--list-syntax-themes`。
 
 ### 按键
 
