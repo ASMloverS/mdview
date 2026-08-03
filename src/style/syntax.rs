@@ -138,23 +138,19 @@ impl SyntaxTheme {
         // 1: 语言特化规则（要求至少一条选择器长度 ≥ 2）。
         for lang in langs {
             let chain = [lang.as_str(), class];
-            if let Some(st) = self.match_style(&chain, 2) {
+            if let Some(st) = match_rules(&self.rules, &chain, 2) {
                 return st;
             }
         }
         // 2: 全局类别规则。
-        if let Some(st) = self.match_style(&[class], 1) {
+        if let Some(st) = match_rules(&self.rules, &[class], 1) {
             return st;
         }
-        // 3: 页面主题 syntax-*。
-        if page.has_syntax_rule(class) {
-            let c = page.style_for(&["body", &format!("syntax-{class}")]);
-            return SyntaxStyle {
-                fg: c.fg,
-                bold: c.bold,
-                italic: c.italic,
-                underline: c.underline,
-            };
+        // 3: 页面主题 syntax-*（body 链；未设 color 时 fg 保持 None）。
+        let leaf = format!("syntax-{class}");
+        let chain = ["body", leaf.as_str()];
+        if let Some(st) = match_rules(&page.rules, &chain, 1) {
+            return st;
         }
         // 4: 别名派生（目标类别重新走完整回退链；目标均非别名类，最多一跳）。
         if let Some(target) = alias_of(class) {
@@ -162,43 +158,43 @@ impl SyntaxTheme {
         }
         SyntaxStyle::default()
     }
+}
 
-    /// 折叠匹配 chain 的规则（按 特异性, 规则序 升序，后者覆盖前者）。
-    /// `min_spec`：至少一条匹配选择器长度 ≥ min_spec 才视为命中。
-    fn match_style(&self, chain: &[&str], min_spec: usize) -> Option<SyntaxStyle> {
-        let mut matches: Vec<(usize, usize, &Props)> = Vec::new();
-        for (idx, rule) in self.rules.iter().enumerate() {
-            let mut best = 0;
-            for sel in &rule.selectors {
-                if selector_matches(sel, chain) {
-                    best = best.max(sel.len());
-                }
-            }
-            if best > 0 {
-                matches.push((best, idx, &rule.props));
+/// 折叠匹配 chain 的规则（按 特异性, 规则序 升序，后者覆盖前者）。
+/// `min_spec`：至少一条匹配选择器长度 ≥ min_spec 才视为命中。
+fn match_rules(rules: &[Rule], chain: &[&str], min_spec: usize) -> Option<SyntaxStyle> {
+    let mut matches: Vec<(usize, usize, &Props)> = Vec::new();
+    for (idx, rule) in rules.iter().enumerate() {
+        let mut best = 0;
+        for sel in &rule.selectors {
+            if selector_matches(sel, chain) {
+                best = best.max(sel.len());
             }
         }
-        if !matches.iter().any(|(spec, _, _)| *spec >= min_spec) {
-            return None;
+        if best > 0 {
+            matches.push((best, idx, &rule.props));
         }
-        matches.sort_by_key(|(spec, idx, _)| (*spec, *idx));
-        let mut st = SyntaxStyle::default();
-        for (_, _, p) in matches {
-            if let Some(c) = p.color {
-                st.fg = Some(c);
-            }
-            if let Some(v) = p.bold {
-                st.bold = v;
-            }
-            if let Some(v) = p.italic {
-                st.italic = v;
-            }
-            if let Some(v) = p.underline {
-                st.underline = v;
-            }
-        }
-        Some(st)
     }
+    if !matches.iter().any(|(spec, _, _)| *spec >= min_spec) {
+        return None;
+    }
+    matches.sort_by_key(|(spec, idx, _)| (*spec, *idx));
+    let mut st = SyntaxStyle::default();
+    for (_, _, p) in matches {
+        if let Some(c) = p.color {
+            st.fg = Some(c);
+        }
+        if let Some(v) = p.bold {
+            st.bold = v;
+        }
+        if let Some(v) = p.italic {
+            st.italic = v;
+        }
+        if let Some(v) = p.underline {
+            st.underline = v;
+        }
+    }
+    Some(st)
 }
 
 #[cfg(test)]
@@ -265,6 +261,15 @@ mod tests {
         let st = t.resolve(&["rust".to_string()], "comment", &p);
         assert_eq!(st.fg, Some(Rgb(0x92, 0x83, 0x74)));
         assert!(st.italic, "页面主题 syntax-comment 的 italic 经回退生效");
+    }
+
+    #[test]
+    fn page_fallback_without_color_keeps_fg_none() {
+        let t = SyntaxTheme::from_css("t", "");
+        let p = page("syntax-comment { font-style: italic }");
+        let st = t.resolve(&["rust".to_string()], "comment", &p);
+        assert_eq!(st.fg, None, "页面规则未设 color 时保持默认前景");
+        assert!(st.italic);
     }
 
     #[test]

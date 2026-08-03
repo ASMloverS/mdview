@@ -173,14 +173,6 @@ impl Scheme {
     pub fn syntax_color(&self, class: &str) -> Option<Rgb> {
         self.style_for(&["body", &format!("syntax-{class}")]).fg
     }
-
-    /// 页面主题是否定义了 `syntax-<class>` 规则（区别于 style_for 的默认前景）。
-    pub fn has_syntax_rule(&self, class: &str) -> bool {
-        let leaf = format!("syntax-{class}");
-        self.rules
-            .iter()
-            .any(|r| r.selectors.iter().any(|sel| sel.last().is_some_and(|t| *t == leaf)))
-    }
 }
 
 fn apply(props: &Props, c: &mut Computed) {
