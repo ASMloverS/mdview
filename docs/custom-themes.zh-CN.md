@@ -52,7 +52,7 @@ mdview 的主题就是一个 CSS 文件，用的是刻意精简的 CSS 子集—
 
 ## 语法高亮主题（syntax-styles）
 
-代码块的语法高亮配色独立于页面主题，由 exe 同级 `syntax-styles/<name>.css` 定义；内置 20 套与页面主题同名的语法主题。通过 `config.toml` 的 `syntax_theme` 键或 `--syntax-theme` 参数选择；未设置时自动跟随页面主题的同名语法主题。`--list-syntax-themes` 列出全部可用语法主题。
+代码块的语法高亮配色独立于页面主题，由 exe 同级 `syntax-styles/<name>.css` 定义；内置 20 套与页面主题同名的语法主题。`syntax-styles/` 中与内置语法主题同名的文件会**整体覆盖**该内置语法主题。通过 `config.toml` 的 `syntax_theme` 键或 `--syntax-theme` 参数选择；未设置时自动跟随页面主题的同名语法主题。`--list-syntax-themes` 列出全部可用语法主题。
 
 CSS 语法与页面主题同一子集，选择器为 16 个 token 类别，可用语言名作祖先选择器做 per-language 特化：
 

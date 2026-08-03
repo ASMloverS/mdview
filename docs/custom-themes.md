@@ -52,7 +52,7 @@ A file in `md-styles/` with the same name as a builtin **overrides** that builti
 
 ## Syntax Highlighting Themes (syntax-styles)
 
-Code-block syntax highlighting colors are independent of the page theme. They are defined by `syntax-styles/<name>.css` next to the executable; 20 builtin syntax themes ship under the same names as the page themes. Select one with the `syntax_theme` key in `config.toml` or the `--syntax-theme` flag; when unset, it automatically follows the page theme's namesake syntax theme. `--list-syntax-themes` lists every available syntax theme.
+Code-block syntax highlighting colors are independent of the page theme. They are defined by `syntax-styles/<name>.css` next to the executable; 20 builtin syntax themes ship under the same names as the page themes. A file in `syntax-styles/` with the same name as a builtin **overrides** that builtin entirely. Select one with the `syntax_theme` key in `config.toml` or the `--syntax-theme` flag; when unset, it automatically follows the page theme's namesake syntax theme. `--list-syntax-themes` lists every available syntax theme.
 
 The CSS syntax is the same subset as page themes. Selectors are the 16 token classes, and a language name can be used as an ancestor selector for per-language specialization:
 
