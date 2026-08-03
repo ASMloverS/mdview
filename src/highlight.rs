@@ -1,5 +1,5 @@
-//! syntect-based syntax highlighting driven by a `SyntaxTheme`
-//! (`syntax-styles/*.css`)，per-language 懒构建 syntect Theme 并缓存。
+//! 基于 syntect 的语法高亮：由 `SyntaxTheme`（`syntax-styles/*.css`）驱动，
+//! 按语言懒构建 syntect Theme 并缓存。
 
 use crate::style::{Rgb, Scheme, SyntaxTheme};
 use syntect::easy::HighlightLines;
