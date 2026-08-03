@@ -1,15 +1,14 @@
 //! Syntax highlighting themes: exe 同级 `syntax-styles/<name>.css` 用户主题，
 //! 内置主题 embed 自 `assets/syntax-styles/`。与页面主题（md-styles）解耦。
 
-// 部分 API 由后续任务（高亮器接入、主题选择器）消费，暂允许 dead_code。
-#![allow(dead_code)]
-
 use super::color::Rgb;
 use super::css::{self, Props, Rule};
 use super::scheme::{exe_dir, selector_matches, Scheme};
 use std::path::PathBuf;
 
 /// 16 个 token 类别（顺序即 syntect ThemeItem 顺序：宽泛在前）。
+/// 仅完整性测试使用；高亮器迭代自身的 SCOPE_MAP。
+#[cfg(test)]
 pub const CLASSES: &[&str] = &[
     "keyword", "string", "comment", "function", "type", "number", "operator",
     "variable", "constant", "macro", "attribute", "decorator", "module",
@@ -296,5 +295,22 @@ mod tests {
     fn unknown_theme_loads_empty() {
         let t = SyntaxTheme::load("no-such-syntax-theme-xyz");
         assert!(t.rules.is_empty());
+    }
+
+    #[test]
+    fn builtin_syntax_themes_parse_and_cover_all_classes() {
+        for name in SyntaxTheme::builtin_names() {
+            let t = SyntaxTheme::load(name);
+            assert!(!t.rules.is_empty(), "builtin {name} produced no rules");
+            for &class in CLASSES {
+                assert!(
+                    t.rules.iter().any(|r| r
+                        .selectors
+                        .iter()
+                        .any(|sel| sel.last().is_some_and(|s| s.as_str() == class))),
+                    "builtin {name} missing class {class}"
+                );
+            }
+        }
     }
 }

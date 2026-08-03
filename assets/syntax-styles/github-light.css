@@ -1,2 +1,17 @@
-/* placeholder */
-keyword { color: #ffffff }
+/* mdview builtin syntax theme: github-light (from md-styles/github-light.css) */
+keyword { color: #cf222e; }
+string { color: #0a3069; }
+comment { color: #6e7781; font-style: italic; }
+function { color: #8250df; }
+type { color: #953800; }
+number { color: #0550ae; }
+operator { color: #1f2328; }
+variable { color: #1f2328; }
+constant { color: #0550ae; }
+macro { color: #8250df; }
+attribute { color: #953800; }
+decorator { color: #8250df; }
+module { color: #953800; }
+namespace { color: #953800; }
+punctuation { color: #1f2328; }
+label { color: #cf222e; }

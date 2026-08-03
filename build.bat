@@ -28,6 +28,8 @@ if not exist "%~dp0bin\" mkdir "%~dp0bin" || exit /b 1
 copy /y "%~dp0target\%PROFILE%\mdview.exe" "%~dp0bin\mdview.exe" >NUL || exit /b 1
 if not exist "%~dp0bin\config.toml" call :write_config
 if not exist "%~dp0bin\md-styles\" mkdir "%~dp0bin\md-styles" || exit /b 1
+if not exist "%~dp0bin\syntax-styles\" mkdir "%~dp0bin\syntax-styles" || exit /b 1
+copy /y "%~dp0assets\syntax-styles\example.css" "%~dp0bin\syntax-styles\example.css" >NUL || exit /b 1
 echo Built %~dp0bin\mdview.exe [%PROFILE%]
 exit /b 0
 
@@ -38,7 +40,7 @@ echo   (no option)    Release build (default)
 echo   -d, --debug    Debug build
 echo   -h, --help     Show this help and exit
 echo.
-echo Output: bin\mdview.exe + bin\config.toml + bin\md-styles\
+echo Output: bin\mdview.exe + bin\config.toml + bin\md-styles\ + bin\syntax-styles\
 goto :eof
 
 :write_config
@@ -46,6 +48,9 @@ set "CFG=%~dp0bin\config.toml"
 > "%CFG%" echo # mdview configuration
 >> "%CFG%" echo # Theme: builtin name (gruvbox-dark, nord, dracula, ...) or a css file in md-styles/
 >> "%CFG%" echo theme = "gruvbox-dark"
+>> "%CFG%" echo.
+>> "%CFG%" echo # Syntax theme: builtin name or a css file in syntax-styles/ (default: follows page theme)
+>> "%CFG%" echo # syntax_theme = "gruvbox-dark"
 >> "%CFG%" echo.
 >> "%CFG%" echo # Max content width in columns (comment out for terminal width)
 >> "%CFG%" echo # max_width = 100

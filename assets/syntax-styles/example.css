@@ -1,0 +1,38 @@
+/* mdview 语法高亮主题示例
+ *
+ * 用法：复制为 exe 同级 syntax-styles/<name>.css，修改后在 config.toml 设置
+ *   syntax_theme = "<name>"
+ * 或命令行 --syntax-theme <name>。未设置时跟随页面主题同名语法主题。
+ *
+ * 选择器 = 16 个 token 类别；语言名作祖先选择器可做 per-language 特化。
+ * 支持属性：color、font-weight、font-style、text-decoration: underline。
+ * 未定义类别的回退：页面主题 syntax-* → 别名派生 → 代码块默认前景。
+ * 别名：constant→number、macro/decorator→function、attribute/module/namespace→type、
+ *       punctuation→operator、label→keyword、variable→默认前景。
+ */
+
+/* ---- 基础类别 ---- */
+keyword    { color: #fb4934; }              /* 关键字：let fn if match use ... */
+string     { color: #b8bb26; }              /* 字符串/字符字面量 */
+comment    { color: #928374; font-style: italic; }
+function   { color: #b8bb26; }              /* 函数名/调用 */
+type       { color: #fabd2f; }              /* 类型/类名 */
+number     { color: #d3869b; }              /* 数字字面量 */
+operator   { color: #8ec07c; }              /* 运算符 */
+
+/* ---- 扩展类别 ---- */
+variable    { color: #ebdbb2; }             /* 变量（一般保持默认前景） */
+constant    { color: #d3869b; }             /* true/false/null 等语言常量 */
+macro       { color: #fe8019; }             /* 宏 */
+attribute   { color: #fabd2f; }             /* HTML 属性等 */
+decorator   { color: #8ec07c; }             /* Python decorator / annotation */
+module      { color: #fabd2f; }             /* 模块名 */
+namespace   { color: #fabd2f; }             /* 命名空间 */
+punctuation { color: #8ec07c; }             /* 标点 */
+label       { color: #fb4934; }             /* label */
+
+/* ---- 语言特化：语言名作祖先选择器 ----
+ * 语言名匹配代码块 info string 原文（小写）与规范语言名（rs 命中 rust）。
+ */
+rust macro       { color: #fe8019; font-weight: bold; }
+python decorator { color: #d3869b; }

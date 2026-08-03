@@ -1,2 +1,17 @@
-/* placeholder */
-keyword { color: #ffffff }
+/* mdview builtin syntax theme: ayu-dark (from md-styles/ayu-dark.css) */
+keyword { color: #ff8f40; }
+string { color: #aad94c; }
+comment { color: #5a6673; font-style: italic; }
+function { color: #ffb454; }
+type { color: #59c2ff; }
+number { color: #d2a6ff; }
+operator { color: #f29668; }
+variable { color: #bfbdb6; }
+constant { color: #d2a6ff; }
+macro { color: #ffb454; }
+attribute { color: #59c2ff; }
+decorator { color: #ffb454; }
+module { color: #59c2ff; }
+namespace { color: #59c2ff; }
+punctuation { color: #f29668; }
+label { color: #ff8f40; }

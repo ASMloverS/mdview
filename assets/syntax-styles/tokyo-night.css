@@ -1,2 +1,17 @@
-/* placeholder */
-keyword { color: #ffffff }
+/* mdview builtin syntax theme: tokyo-night (from md-styles/tokyo-night.css) */
+keyword { color: #bb9af7; }
+string { color: #9ece6a; }
+comment { color: #565f89; font-style: italic; }
+function { color: #7aa2f7; }
+type { color: #7dcfff; }
+number { color: #ff9e64; }
+operator { color: #89ddff; }
+variable { color: #c0caf5; }
+constant { color: #ff9e64; }
+macro { color: #7aa2f7; }
+attribute { color: #7dcfff; }
+decorator { color: #7aa2f7; }
+module { color: #7dcfff; }
+namespace { color: #7dcfff; }
+punctuation { color: #89ddff; }
+label { color: #bb9af7; }

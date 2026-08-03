@@ -1,2 +1,17 @@
-/* placeholder */
-keyword { color: #ffffff }
+/* mdview builtin syntax theme: everforest (from md-styles/everforest.css) */
+keyword { color: #e67e80; }
+string { color: #a7c080; }
+comment { color: #859289; font-style: italic; }
+function { color: #a7c080; }
+type { color: #dbbc7f; }
+number { color: #d699b6; }
+operator { color: #e69875; }
+variable { color: #d3c6aa; }
+constant { color: #d699b6; }
+macro { color: #a7c080; }
+attribute { color: #dbbc7f; }
+decorator { color: #a7c080; }
+module { color: #dbbc7f; }
+namespace { color: #dbbc7f; }
+punctuation { color: #e69875; }
+label { color: #e67e80; }
